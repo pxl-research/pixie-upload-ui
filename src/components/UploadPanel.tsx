@@ -9,7 +9,6 @@ import {
   Input,
   Stack,
   Text,
-  Textarea,
   Field,
 } from '@chakra-ui/react'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -29,19 +28,9 @@ interface UploadPanelProps {
 }
 
 const schema = z.object({
-  product_prefix: z
-    .string()
-    .max(64, 'Maximaal 64 karakters')
-    .transform((value) => (value?.trim() ? value.trim() : undefined))
-    .optional(),
   language: z
     .string()
     .max(8, 'Maximaal 8 karakters')
-    .transform((value) => (value?.trim() ? value.trim() : undefined))
-    .optional(),
-  description: z
-    .string()
-    .max(256, 'Maximaal 256 karakters')
     .transform((value) => (value?.trim() ? value.trim() : undefined))
     .optional(),
 })
@@ -63,7 +52,7 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
     reset,
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { product_prefix: '', language: '', description: '' },
+    defaultValues: { language: '' },
   })
 
   useEffect(() => {
@@ -83,7 +72,7 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
   const resetUploadState = () => {
     setSelectedFile(null)
     abortControllerRef.current = null
-    reset({ product_prefix: '', language: '', description: '' })
+    reset({ language: '' })
   }
 
   const handleFile = (file: File) => {
@@ -136,8 +125,6 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
 
     const payload: UploadDocumentVariables = {
       file: selectedFile,
-      product_prefix: values.product_prefix,
-      description: values.description,
       language: values.language,
       signal: controller.signal,
     }
@@ -224,11 +211,6 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
             </Box>
 
             <Stack direction={{ base: 'column', md: 'row' }} gap={4}>
-              <Field.Root invalid={Boolean(errors.product_prefix)}>
-                <Field.Label>Product prefix (optioneel)</Field.Label>
-                <Input placeholder="Bijv. SKU-" {...register('product_prefix')} />
-                <Field.ErrorText>{errors.product_prefix?.message}</Field.ErrorText>
-              </Field.Root>
               <Field.Root invalid={Boolean(errors.language)}>
                 <Field.Label>Taal</Field.Label>
                 <select 
@@ -250,16 +232,6 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
                 <Field.ErrorText>{errors.language?.message}</Field.ErrorText>
               </Field.Root>
             </Stack>
-
-            <Field.Root invalid={Boolean(errors.description)}>
-              <Field.Label>Omschrijving</Field.Label>
-              <Textarea
-                placeholder="Interne beschrijving van het document"
-                rows={3}
-                {...register('description')}
-              />
-              <Field.ErrorText>{errors.description?.message}</Field.ErrorText>
-            </Field.Root>
 
             <Flex justify="flex-end" gap={3}>
               {isUploading ? (
