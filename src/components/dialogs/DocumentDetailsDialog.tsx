@@ -1,4 +1,5 @@
 import {
+  Box,
   Badge,
   Button,
   Dialog,
@@ -8,12 +9,13 @@ import {
   Input,
   Stack,
   Text,
+  useToken,
   Wrap,
   WrapItem,
 } from '@chakra-ui/react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { DragEvent } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import type { DocumentDto, DocumentUpdateInput } from '@/api/types'
@@ -101,6 +103,18 @@ export function DocumentDetailsDialog({
 
   const [columnOrder, setColumnOrder] = useState<string[]>(() => sortColumnsByRank(document))
   const [draggingColumn, setDraggingColumn] = useState<string | null>(null)
+  const [dropIndex, setDropIndex] = useState<number | null>(null)
+  const [borderColor] = useToken('colors', ['purple.500'])
+  const dropIndicatorStyle = {
+    borderWidth: '2px',
+    borderStyle: 'dashed',
+    borderColor,
+    borderRadius: 'md',
+    minHeight: '32px',
+    minWidth: '60px',
+  } as const
+
+  const isDropActive = dropIndex !== null
 
   useEffect(() => {
     if (!document) {
@@ -144,13 +158,13 @@ export function DocumentDetailsDialog({
         return previous
       }
       const next = previous.filter((column) => column !== source)
-      if (target) {
-        const targetIndex = next.indexOf(target)
-        if (targetIndex === -1) {
-          next.push(source)
-        } else {
-          next.splice(targetIndex, 0, source)
-        }
+    if (target) {
+      const targetIndex = next.indexOf(target)
+      if (targetIndex === -1) {
+        next.push(source)
+      } else {
+        next.splice(targetIndex, 0, source)
+      }
       } else {
         next.push(source)
       }
@@ -158,16 +172,24 @@ export function DocumentDetailsDialog({
     })
   }
 
-  const handleDropOnItem = (targetColumn: string) => (event: DragEvent<HTMLDivElement>) => {
+  const handleDragEnterItem = (index: number) => (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setDropIndex(index)
+  }
+
+  const handleDropOnItem = (targetColumn: string, index: number) => (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     event.stopPropagation()
     const source = event.dataTransfer.getData('text/plain') || draggingColumn
     if (!source || source === targetColumn) {
       setDraggingColumn(null)
+      setDropIndex(null)
       return
     }
     moveColumn(source, targetColumn)
     setDraggingColumn(null)
+    setDropIndex(null)
   }
 
   const handleDropOnContainer = (event: DragEvent<HTMLDivElement>) => {
@@ -175,14 +197,17 @@ export function DocumentDetailsDialog({
     const source = event.dataTransfer.getData('text/plain') || draggingColumn
     if (!source) {
       setDraggingColumn(null)
+      setDropIndex(null)
       return
     }
     moveColumn(source)
     setDraggingColumn(null)
+    setDropIndex(null)
   }
 
   const handleDragEnd = () => {
     setDraggingColumn(null)
+    setDropIndex(null)
   }
 
   const handleFormSubmit = handleSubmit((values) => {
@@ -280,25 +305,39 @@ export function DocumentDetailsDialog({
                     spacing={2}
                     onDragOver={handleDragOver}
                     onDrop={handleDropOnContainer}
+                    onDragEnter={() => setDropIndex(columnOrder.length)}
                     py={1}
                   >
                     {columnOrder.map((column, index) => (
-                      <WrapItem key={column}>
-                        <Badge
-                          draggable
-                          onDragStart={handleDragStart(column)}
-                          onDragOver={handleDragOver}
-                          onDrop={handleDropOnItem(column)}
-                          onDragEnd={handleDragEnd}
-                          variant={draggingColumn === column ? 'solid' : 'subtle'}
-                          colorScheme="purple"
-                          cursor="grab"
-                          userSelect="none"
-                        >
-                          #{index + 1} · {column}
-                        </Badge>
-                      </WrapItem>
+                      <Fragment key={column}>
+                        {isDropActive && dropIndex === index ? (
+                          <WrapItem pointerEvents="none">
+                            <Box sx={dropIndicatorStyle} />
+                          </WrapItem>
+                        ) : null}
+                        <WrapItem>
+                          <Badge
+                            draggable
+                            onDragStart={handleDragStart(column)}
+                            onDragOver={handleDragOver}
+                            onDragEnter={handleDragEnterItem(index)}
+                            onDrop={handleDropOnItem(column, index)}
+                            onDragEnd={handleDragEnd}
+                            variant={draggingColumn === column ? 'solid' : 'subtle'}
+                            colorScheme="purple"
+                            cursor="grab"
+                            userSelect="none"
+                          >
+                            #{index + 1} · {column}
+                          </Badge>
+                        </WrapItem>
+                      </Fragment>
                     ))}
+                    {isDropActive && dropIndex === columnOrder.length ? (
+                      <WrapItem pointerEvents="none">
+                        <Box sx={dropIndicatorStyle} />
+                      </WrapItem>
+                    ) : null}
                   </Wrap>
                 )}
               </Stack>
