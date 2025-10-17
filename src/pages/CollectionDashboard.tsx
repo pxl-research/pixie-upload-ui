@@ -7,6 +7,7 @@ import { CreateCollectionDialog } from '@/components/dialogs/CreateCollectionDia
 import { DeleteCollectionDialog } from '@/components/dialogs/DeleteCollectionDialog'
 import { DeleteDocumentDialog } from '@/components/dialogs/DeleteDocumentDialog'
 import { DocumentDetailsDialog } from '@/components/dialogs/DocumentDetailsDialog'
+import { ApiError } from '@/api/client'
 import type { DocumentDto, DocumentUpdateInput } from '@/api/types'
 import { useCollectionsQuery, useDeleteCollectionMutation } from '@/hooks/useCollections'
 import {
@@ -140,21 +141,16 @@ export function CollectionDashboard() {
 
   const handleDocumentUpdate = async (data: DocumentUpdateInput) => {
     if (!editingDocument) return
+    if (Object.keys(data).length === 0) {
+      toast({
+        title: 'Geen wijzigingen',
+        description: 'Pas minimaal één veld aan voordat je opslaat.',
+        status: 'info',
+      })
+      return
+    }
+
     try {
-      const { column_order: columnOrder, ...rest } = data
-      const shouldUpdateColumnOrder = Array.isArray(columnOrder) && columnOrder.length > 0
-      const hasFieldUpdates =
-        typeof rest.product !== 'undefined' || typeof rest.language !== 'undefined'
-
-      if (shouldUpdateColumnOrder && !hasFieldUpdates) {
-        toast({
-          title: 'Kolomvolgorde kan nog niet worden opgeslagen',
-          description: 'De API ondersteunt het wijzigen van de kolomvolgorde nog niet.',
-          status: 'info',
-        })
-        return
-      }
-
       const result = await updateDocumentMutation.mutateAsync({
         documentId: editingDocument.id,
         data,
@@ -170,8 +166,46 @@ export function CollectionDashboard() {
       })
       setEditingDocument(undefined)
     } catch (error) {
-      const description =
-        error instanceof Error ? error.message : 'Kon document niet bijwerken'
+      const description = (() => {
+        if (error instanceof ApiError) {
+          const detail = error.payload?.detail
+          if (typeof detail === 'string') {
+            return detail
+          }
+          if (Array.isArray(detail)) {
+            return detail
+              .map((item) => {
+                if (item && typeof item === 'object') {
+                  if ('msg' in item && typeof item.msg === 'string') {
+                    return item.msg
+                  }
+                  if ('detail' in item && typeof item.detail === 'string') {
+                    return item.detail
+                  }
+                }
+                try {
+                  return JSON.stringify(item)
+                } catch {
+                  return String(item)
+                }
+              })
+              .join('\n')
+          }
+          if (detail && typeof detail === 'object') {
+            try {
+              return JSON.stringify(detail)
+            } catch {
+              return String(detail)
+            }
+          }
+          return error.message
+        }
+        if (error instanceof Error) {
+          return error.message
+        }
+        return 'Kon document niet bijwerken'
+      })()
+
       toast({
         title: 'Opslaan mislukt',
         description,

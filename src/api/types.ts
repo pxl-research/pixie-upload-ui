@@ -16,6 +16,8 @@ const AttributeDescriptionsSchema = z
   .nullable()
   .optional()
 
+const AttributeRankUpdateSchema = z.object({}).catchall(z.number().int().positive())
+
 export const DocumentSchema = z.object({
   id: z.number().int().nonnegative(),
   file_name: z.string(),
@@ -36,7 +38,7 @@ export const DocumentUpdateSchema = z.object({
   product: z.string().min(1).nullable().optional(),
   description: z.string().nullable().optional(),
   language: z.string().min(1).nullable().optional(),
-  column_order: z.array(z.string().min(1)).min(1).optional(),
+  attribute_ranks: AttributeRankUpdateSchema.optional(),
 })
 
 export const UploadMetadataSchema = z.object({

@@ -13,7 +13,7 @@ import {
 } from '@chakra-ui/react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { DragEvent } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import type { DocumentDto, DocumentUpdateInput } from '@/api/types'
@@ -56,39 +56,27 @@ const sortColumnsByRank = (document: DocumentDto | undefined) => {
   })
 }
 
-const equalOrder = (a: string[], b: string[]) => {
-  if (a.length !== b.length) {
-    return false
-  }
-  return a.every((value, index) => b[index] === value)
-}
-
-const preparePayloadColumnOrder = (
+const computeAttributeRankUpdates = (
   order: string[],
-  rankMap?: DocumentDto['attribute_descriptions'],
+  descriptions?: DocumentDto['attribute_descriptions'],
 ) => {
-  if (!order.length) {
-    return undefined
+  if (!descriptions) {
+    return {}
   }
-  const seen = new Set<string>()
-  const next = []
 
-  for (const column of order) {
-    if (seen.has(column)) {
-      continue
+  const updates: Record<string, number> = {}
+
+  order.forEach((column, index) => {
+    const originalRank = descriptions[column]?.rank
+    if (typeof originalRank === 'number' && originalRank > 0) {
+      const nextRank = index + 1
+      if (nextRank !== originalRank) {
+        updates[column] = nextRank
+      }
     }
-    seen.add(column)
-    next.push(column)
-  }
+  })
 
-  for (const column of rankMap ? Object.keys(rankMap) : []) {
-    if (!seen.has(column)) {
-      next.push(column)
-      seen.add(column)
-    }
-  }
-
-  return next
+  return updates
 }
 
 export function DocumentDetailsDialog({
@@ -113,13 +101,11 @@ export function DocumentDetailsDialog({
 
   const [columnOrder, setColumnOrder] = useState<string[]>(() => sortColumnsByRank(document))
   const [draggingColumn, setDraggingColumn] = useState<string | null>(null)
-  const initialColumnOrderRef = useRef<string[]>(sortColumnsByRank(document))
 
   useEffect(() => {
     if (!document) {
       reset({ product: '', language: '' })
       setColumnOrder([])
-      initialColumnOrderRef.current = []
       return
     }
 
@@ -128,17 +114,17 @@ export function DocumentDetailsDialog({
       language: document.language ?? '',
     })
 
-    const nextOrder = sortColumnsByRank(document)
-    setColumnOrder(nextOrder)
-    initialColumnOrderRef.current = nextOrder
+    setColumnOrder(sortColumnsByRank(document))
   }, [document, reset])
+
+  const attributeRankUpdates = useMemo(() => {
+    if (!document) return {}
+    return computeAttributeRankUpdates(columnOrder, document.attribute_descriptions ?? undefined)
+  }, [columnOrder, document])
 
   if (!document) {
     return null
   }
-
-  const columnOrderChanged =
-    columnOrder.length > 0 && !equalOrder(columnOrder, initialColumnOrderRef.current)
 
   const handleDragStart = (column: string) => (event: DragEvent<HTMLDivElement>) => {
     event.dataTransfer.setData('text/plain', column)
@@ -214,11 +200,14 @@ export function DocumentDetailsDialog({
       payload.language = trimmedLanguage.length > 0 ? trimmedLanguage : null
     }
 
-    if (columnOrderChanged) {
-      payload.column_order = preparePayloadColumnOrder(
-        columnOrder,
-        document.attribute_descriptions,
-      )
+    const normalizedAttributeRanks = Object.fromEntries(
+      Object.entries(attributeRankUpdates)
+        .map(([key, value]) => [key, Number(value)])
+        .filter(([, value]) => Number.isFinite(value) && value > 0),
+    )
+
+    if (Object.keys(normalizedAttributeRanks).length > 0) {
+      payload.attribute_ranks = normalizedAttributeRanks
     }
 
     onSubmit(payload)

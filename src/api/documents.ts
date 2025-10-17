@@ -32,6 +32,9 @@ export async function updateDocument(
   documentId: string | number,
   payload: DocumentUpdateInput,
 ) {
+  if (process.env.NODE_ENV !== 'production') {
+    console.debug('updateDocument payload', payload)
+  }
   const data = await request<DocumentDto>({
     url: routes.collectionDocument(collectionName, String(documentId)),
     method: 'PATCH',
