@@ -16,6 +16,7 @@ export interface DocumentTableProps {
   documents: DocumentDto[]
   isLoading?: boolean
   onDeleteRequest?: (document: DocumentDto) => void
+  onSelectDocument?: (document: DocumentDto) => void
   deletingDocumentId?: number | string
   highlightedDocumentId?: number | string
 }
@@ -25,6 +26,7 @@ export function DocumentTable({
   documents,
   isLoading = false,
   onDeleteRequest,
+  onSelectDocument,
   deletingDocumentId,
   highlightedDocumentId,
 }: DocumentTableProps) {
@@ -68,7 +70,9 @@ export function DocumentTable({
                         ? 'green.50'
                         : undefined
                     }
+                    cursor="pointer"
                     _hover={{ bg: 'gray.50' }}
+                    onClick={() => onSelectDocument?.(document)}
                   >
                     <Table.Cell>{document.product ?? 'n.v.t.'}</Table.Cell>
                     <Table.Cell>{document.file_name}</Table.Cell>
@@ -85,7 +89,10 @@ export function DocumentTable({
                         size="xs"
                         colorScheme="red"
                         variant="outline"
-                        onClick={() => onDeleteRequest?.(document)}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onDeleteRequest?.(document)
+                        }}
                         loading={deletingDocumentId === document.id}
                         loadingText="Verwijderen"
                       >

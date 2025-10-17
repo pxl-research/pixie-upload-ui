@@ -32,6 +32,13 @@ export type DocumentDto = z.infer<typeof DocumentSchema>
 
 export const DocumentListSchema = z.array(DocumentSchema)
 
+export const DocumentUpdateSchema = z.object({
+  product: z.string().min(1).nullable().optional(),
+  description: z.string().nullable().optional(),
+  language: z.string().min(1).nullable().optional(),
+  column_order: z.array(z.string().min(1)).min(1).optional(),
+})
+
 export const UploadMetadataSchema = z.object({
   product_prefix: z.string().nullable().optional(),
   language: z.string().nullable().optional(),
@@ -45,3 +52,5 @@ export const UploadResponseSchema = z.array(DocumentSchema)
 export type DocumentListDto = z.infer<typeof DocumentListSchema>
 
 export type UploadResponseDto = z.infer<typeof UploadResponseSchema>
+
+export type DocumentUpdateInput = z.infer<typeof DocumentUpdateSchema>

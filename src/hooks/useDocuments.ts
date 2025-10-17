@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CollectionDto, DocumentDto } from '@/api/types'
-import { deleteDocument, fetchDocuments } from '@/api/documents'
+import { deleteDocument, fetchDocuments, updateDocument } from '@/api/documents'
 import { queryKeys } from '@/api/queryKeys'
 import {
   uploadDocument,
   type UploadDocumentInput,
   type UploadDocumentOptions,
 } from '@/api/uploads'
+import type { DocumentUpdateInput } from '@/api/types'
 
 export function useDocumentsQuery(collectionName?: string) {
   return useQuery({
@@ -105,6 +106,35 @@ export function useDeleteDocumentMutation(collectionName?: string) {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.documents(collectionName),
       })
+    },
+  })
+}
+
+export interface UpdateDocumentVariables {
+  documentId: number | string
+  data: DocumentUpdateInput
+}
+
+export function useUpdateDocumentMutation(collectionName?: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ documentId, data }: UpdateDocumentVariables) => {
+      if (!collectionName) {
+        return Promise.reject(new Error('collectionName is required'))
+      }
+      return updateDocument(collectionName, documentId, data)
+    },
+    onSuccess: async (updatedDocument) => {
+      if (!collectionName) return
+
+      queryClient.setQueryData<DocumentDto[]>(
+        queryKeys.documents(collectionName),
+        (previous = []) =>
+          previous.map((document) =>
+            document.id === updatedDocument.id ? updatedDocument : document,
+          ),
+      )
     },
   })
 }
