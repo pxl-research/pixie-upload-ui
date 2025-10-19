@@ -1,12 +1,21 @@
-import type { AxiosError, AxiosRequestConfig } from 'axios'
-import axios from 'axios'
+import type {
+  AxiosError,
+  AxiosRequestConfig,
+  AxiosRequestHeaders,
+} from 'axios'
+import axios, { AxiosHeaders } from 'axios'
 import { env } from '@/config/env'
 import { log } from '@/utils/logger'
 
 const API_KEY_HEADER = 'X-API-Key'
 
+export type ApiErrorDetail =
+  | string
+  | Record<string, unknown>
+  | Array<string | Record<string, unknown>>
+
 export interface ApiErrorPayload {
-  detail?: string
+  detail?: ApiErrorDetail
   message?: string
   status_code?: number
 }
@@ -33,15 +42,17 @@ const client = axios.create({
 })
 
 client.interceptors.request.use((config) => {
-  const nextConfig = {
-    ...config,
-    headers: {
+  if (config.headers instanceof AxiosHeaders) {
+    config.headers.set(API_KEY_HEADER, env.apiKey)
+  } else {
+    const headers: AxiosRequestHeaders = {
       ...(config.headers ?? {}),
       [API_KEY_HEADER]: env.apiKey,
-    },
+    }
+    config.headers = headers
   }
 
-  return nextConfig
+  return config
 })
 
 client.interceptors.response.use(

@@ -1,3 +1,4 @@
+import type { AxiosProgressEvent } from 'axios'
 import type { DocumentDto, UploadMetadata } from '@/api/types'
 import { request } from '@/api/client'
 import { routes } from '@/api/routes'
@@ -8,7 +9,7 @@ export interface UploadDocumentInput extends UploadMetadata {
 }
 
 export interface UploadDocumentOptions {
-  onUploadProgress?: (event: ProgressEvent) => void
+  onUploadProgress?: (event: AxiosProgressEvent) => void
   signal?: AbortSignal
 }
 

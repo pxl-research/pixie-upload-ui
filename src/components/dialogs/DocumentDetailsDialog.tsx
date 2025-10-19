@@ -35,6 +35,20 @@ export interface DocumentDetailsDialogProps {
   onSubmit: (input: DocumentUpdateInput) => void
 }
 
+type AttributeDescriptions = NonNullable<DocumentDto['attribute_descriptions']>
+
+const getAttributeRank = (
+  descriptions: AttributeDescriptions | undefined,
+  key: string,
+): number | undefined => {
+  const raw = descriptions?.[key]
+  if (typeof raw === 'object' && raw !== null && 'rank' in raw) {
+    const rankValue = (raw as { rank?: unknown }).rank
+    return typeof rankValue === 'number' ? rankValue : undefined
+  }
+  return undefined
+}
+
 const sortColumnsByRank = (document: DocumentDto | undefined) => {
   if (!document) {
     return [] as string[]
@@ -43,8 +57,8 @@ const sortColumnsByRank = (document: DocumentDto | undefined) => {
   const rankMap = document.attribute_descriptions ?? undefined
 
   return [...document.columns].sort((a, b) => {
-    const rankA = rankMap?.[a]?.rank
-    const rankB = rankMap?.[b]?.rank
+    const rankA = getAttributeRank(rankMap ?? undefined, a)
+    const rankB = getAttributeRank(rankMap ?? undefined, b)
     if (rankA === rankB) {
       return a.localeCompare(b)
     }
@@ -69,7 +83,10 @@ const computeAttributeRankUpdates = (
   const updates: Record<string, number> = {}
 
   order.forEach((column, index) => {
-    const originalRank = descriptions[column]?.rank
+    const originalRank = getAttributeRank(
+      descriptions as AttributeDescriptions | undefined,
+      column,
+    )
     if (typeof originalRank === 'number' && originalRank > 0) {
       const nextRank = index + 1
       if (nextRank !== originalRank) {
@@ -105,14 +122,6 @@ export function DocumentDetailsDialog({
   const [draggingColumn, setDraggingColumn] = useState<string | null>(null)
   const [dropIndex, setDropIndex] = useState<number | null>(null)
   const [borderColor] = useToken('colors', ['purple.500'])
-  const dropIndicatorStyle = {
-    borderWidth: '2px',
-    borderStyle: 'dashed',
-    borderColor,
-    borderRadius: 'md',
-    minHeight: '32px',
-    minWidth: '60px',
-  } as const
 
   const isDropActive = dropIndex !== null
 
@@ -158,13 +167,13 @@ export function DocumentDetailsDialog({
         return previous
       }
       const next = previous.filter((column) => column !== source)
-    if (target) {
-      const targetIndex = next.indexOf(target)
-      if (targetIndex === -1) {
-        next.push(source)
-      } else {
-        next.splice(targetIndex, 0, source)
-      }
+      if (target) {
+        const targetIndex = next.indexOf(target)
+        if (targetIndex === -1) {
+          next.push(source)
+        } else {
+          next.splice(targetIndex, 0, source)
+        }
       } else {
         next.push(source)
       }
@@ -178,7 +187,7 @@ export function DocumentDetailsDialog({
     setDropIndex(index)
   }
 
-  const handleDropOnItem = (targetColumn: string, index: number) => (event: DragEvent<HTMLDivElement>) => {
+  const handleDropOnItem = (targetColumn: string) => (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     event.stopPropagation()
     const source = event.dataTransfer.getData('text/plain') || draggingColumn
@@ -302,7 +311,7 @@ export function DocumentDetailsDialog({
                   </Text>
                 ) : (
                   <Wrap
-                    spacing={2}
+                    gap={2}
                     onDragOver={handleDragOver}
                     onDrop={handleDropOnContainer}
                     onDragEnter={() => setDropIndex(columnOrder.length)}
@@ -312,7 +321,14 @@ export function DocumentDetailsDialog({
                       <Fragment key={column}>
                         {isDropActive && dropIndex === index ? (
                           <WrapItem pointerEvents="none">
-                            <Box sx={dropIndicatorStyle} />
+                            <Box
+                              borderWidth="2px"
+                              borderStyle="dashed"
+                              borderColor={borderColor}
+                              borderRadius="md"
+                              minH="32px"
+                              minW="60px"
+                            />
                           </WrapItem>
                         ) : null}
                         <WrapItem>
@@ -321,7 +337,7 @@ export function DocumentDetailsDialog({
                             onDragStart={handleDragStart(column)}
                             onDragOver={handleDragOver}
                             onDragEnter={handleDragEnterItem(index)}
-                            onDrop={handleDropOnItem(column, index)}
+                            onDrop={handleDropOnItem(column)}
                             onDragEnd={handleDragEnd}
                             variant={draggingColumn === column ? 'solid' : 'subtle'}
                             colorScheme="purple"
@@ -335,7 +351,14 @@ export function DocumentDetailsDialog({
                     ))}
                     {isDropActive && dropIndex === columnOrder.length ? (
                       <WrapItem pointerEvents="none">
-                        <Box sx={dropIndicatorStyle} />
+                        <Box
+                          borderWidth="2px"
+                          borderStyle="dashed"
+                          borderColor={borderColor}
+                          borderRadius="md"
+                          minH="32px"
+                          minW="60px"
+                        />
                       </WrapItem>
                     ) : null}
                   </Wrap>
