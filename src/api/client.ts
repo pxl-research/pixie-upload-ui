@@ -42,16 +42,11 @@ const client = axios.create({
 })
 
 client.interceptors.request.use((config) => {
-  if (config.headers instanceof AxiosHeaders) {
-    config.headers.set(API_KEY_HEADER, env.apiKey)
-    return config
-  }
+  const headers = config.headers instanceof AxiosHeaders
+    ? config.headers
+    : AxiosHeaders.from(config.headers as AxiosRequestHeaders | undefined)
 
-  const headers: AxiosRequestHeaders = {
-    ...(config.headers as AxiosRequestHeaders | undefined),
-    [API_KEY_HEADER]: env.apiKey,
-  }
-
+  headers.set(API_KEY_HEADER, env.apiKey)
   return {
     ...config,
     headers,
@@ -64,8 +59,30 @@ client.interceptors.response.use(
     const status = error.response?.status
     const payload = error.response?.data
 
+    const resolveDetail = (value: ApiErrorDetail | undefined): string | undefined => {
+      if (!value) return undefined
+      if (typeof value === 'string') return value
+      if (Array.isArray(value)) {
+        return value
+          .map((item) => {
+            if (typeof item === 'string') return item
+            try {
+              return JSON.stringify(item)
+            } catch {
+              return String(item)
+            }
+          })
+          .join('\n')
+      }
+      try {
+        return JSON.stringify(value)
+      } catch {
+        return String(value)
+      }
+    }
+
     const message =
-      payload?.detail ??
+      resolveDetail(payload?.detail) ??
       payload?.message ??
       error.message ??
       'Unexpected API error'
