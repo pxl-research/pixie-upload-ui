@@ -234,11 +234,15 @@ export function DocumentDetailsDialog({
       payload.language = trimmedLanguage.length > 0 ? trimmedLanguage : null
     }
 
-    const normalizedAttributeRanks = Object.fromEntries(
-      Object.entries(attributeRankUpdates)
-        .map(([key, value]) => [key, Number(value)])
-        .filter(([, value]) => Number.isFinite(value) && value > 0),
-    )
+    const normalizedAttributeRanks = Object.entries(attributeRankUpdates).reduce<
+      Record<string, number>
+    >((accumulator, [key, value]) => {
+      const parsed = Number(value)
+      if (Number.isFinite(parsed) && parsed > 0) {
+        accumulator[key] = parsed
+      }
+      return accumulator
+    }, {})
 
     if (Object.keys(normalizedAttributeRanks).length > 0) {
       payload.attribute_ranks = normalizedAttributeRanks

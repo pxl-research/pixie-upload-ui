@@ -44,15 +44,18 @@ const client = axios.create({
 client.interceptors.request.use((config) => {
   if (config.headers instanceof AxiosHeaders) {
     config.headers.set(API_KEY_HEADER, env.apiKey)
-  } else {
-    const headers: AxiosRequestHeaders = {
-      ...(config.headers ?? {}),
-      [API_KEY_HEADER]: env.apiKey,
-    }
-    config.headers = headers
+    return config
   }
 
-  return config
+  const headers: AxiosRequestHeaders = {
+    ...(config.headers as AxiosRequestHeaders | undefined),
+    [API_KEY_HEADER]: env.apiKey,
+  }
+
+  return {
+    ...config,
+    headers,
+  }
 })
 
 client.interceptors.response.use(
