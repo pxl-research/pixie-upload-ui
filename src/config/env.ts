@@ -18,16 +18,52 @@ const EnvSchema = z
     logLevel: raw.VITE_LOG_LEVEL,
   }))
 
+type EnvInput = z.input<typeof EnvSchema>
 type EnvConfig = z.infer<typeof EnvSchema>
 
+declare global {
+  interface Window {
+    __PIXIE_UPLOAD_UI_ENV__?: Partial<EnvInput>
+    __ENV?: Partial<EnvInput>
+  }
+}
+
 let cachedEnv: EnvConfig | null = null
+
+function resolveRuntimeEnv(): Partial<EnvInput> {
+  if (typeof window === 'undefined') {
+    return {}
+  }
+
+  const runtimeEnv = window.__PIXIE_UPLOAD_UI_ENV__ ?? window.__ENV
+  if (!runtimeEnv || typeof runtimeEnv !== 'object') {
+    return {}
+  }
+
+  return runtimeEnv
+}
+
+function resolveBuildTimeEnv(): Partial<EnvInput> {
+  return {
+    VITE_APP_NAME: import.meta.env.VITE_APP_NAME,
+    VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
+    VITE_API_PROXY_TARGET: import.meta.env.VITE_API_PROXY_TARGET,
+    VITE_API_KEY: import.meta.env.VITE_API_KEY,
+    VITE_LOG_LEVEL: import.meta.env.VITE_LOG_LEVEL,
+  }
+}
 
 export function getEnv(): EnvConfig {
   if (cachedEnv) {
     return cachedEnv
   }
 
-  const parsed = EnvSchema.safeParse(import.meta.env)
+  const mergedEnv = {
+    ...resolveBuildTimeEnv(),
+    ...resolveRuntimeEnv(),
+  }
+
+  const parsed = EnvSchema.safeParse(mergedEnv)
 
   if (!parsed.success) {
     console.error('Environment validation failed', parsed.error.flatten())
