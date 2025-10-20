@@ -27,24 +27,29 @@ TMP_PATH="$(mktemp)"
   echo '  {'
 } >"$TMP_PATH"
 
+ENV_DUMP="$(mktemp)"
+env | LC_ALL=C sort >"$ENV_DUMP"
+
 FOUND_VARS=0
-env | LC_ALL=C sort | while IFS='=' read -r name value; do
+while IFS='=' read -r name value; do
   case "$name" in
     VITE_*)
       escaped_value=$(printf '%s' "$value" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
-      printf '    %s: "%s",\n' "$name" "$escaped_value"
+      printf '    %s: "%s",\n' "$name" "$escaped_value" >>"$TMP_PATH"
       echo "  ✓ Injected: $name"
       FOUND_VARS=$((FOUND_VARS + 1))
       ;;
   esac
-done >>"$TMP_PATH"
+done <"$ENV_DUMP"
+rm -f "$ENV_DUMP"
 
 {
   echo '  }'
   echo ');'
 } >>"$TMP_PATH"
 
-mv "$TMP_PATH" "$CONFIG_PATH"
+install -m 644 "$TMP_PATH" "$CONFIG_PATH"
+rm -f "$TMP_PATH"
 
 if [ "$FOUND_VARS" -eq 0 ]; then
   echo "⚠ WARNING: No VITE_* environment variables found!"
