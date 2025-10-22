@@ -129,7 +129,7 @@ function CollectionRow({
         <HStack justify="space-between" align="flex-start">
           <Stack gap={0}>
             <Text fontWeight="semibold">{collection.name}</Text>
-            <Wrap spacing={1} pt={1}>
+            <Wrap gap={1} pt={1}>
               {storageTargets.map((target) => (
                 <WrapItem key={`active-${target}`}>
                   <Badge colorScheme="purple" variant="subtle">

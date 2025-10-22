@@ -17,6 +17,13 @@ describe('collectionStore', () => {
       collection: 'demo',
       row_count: 10,
       columns: [],
+      storage_target: 'pixie-tabular-db',
+      planned_storage_targets: [],
+      file_extension: '.csv',
+      original_file_type: 'text/csv',
+      requires_preprocessing: false,
+      language: null,
+      description: null,
     } as DocumentDto
     useCollectionStore.getState().requestDeleteDocument(document)
     expect(useCollectionStore.getState().pendingDeleteDocument).toBe(document)

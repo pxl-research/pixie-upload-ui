@@ -157,7 +157,7 @@ interface StorageSectionProps {
 function StorageSection({ title, subtitle, children }: StorageSectionProps) {
   return (
     <Stack gap={3}>
-      <Stack spacing={0}>
+      <Stack gap={0}>
         <Heading as="h3" size="sm">
           {title}
         </Heading>
@@ -270,7 +270,7 @@ function SimpleDocumentList({
           <Box key={document.id} borderWidth="1px" borderRadius="md" p={3}>
             <Stack gap={3}>
               <HStack align="flex-start" justify="space-between">
-                <Stack spacing={1}>
+                <Stack gap={1}>
                   <Text fontWeight="semibold">{document.file_name}</Text>
                   <Text fontSize="sm" color="gray.600">
                     Opslag: {describeTarget(document.storage_target)}
@@ -292,7 +292,7 @@ function SimpleDocumentList({
                   Verwijderen
                 </Button>
               </HStack>
-              <Wrap spacing={2}>
+              <Wrap gap={2}>
                 {document.requires_preprocessing ? (
                   <WrapItem>
                     <Badge colorScheme="purple" variant="subtle">

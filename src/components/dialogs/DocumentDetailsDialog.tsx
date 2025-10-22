@@ -271,7 +271,7 @@ export function DocumentDetailsDialog({
                 <Stack>
                   <Text color="gray.500">Rijen</Text>
                   <Text fontWeight="medium">
-                    {Number.isFinite(document.row_count)
+                    {typeof document.row_count === 'number' && Number.isFinite(document.row_count)
                       ? document.row_count.toLocaleString('nl-NL')
                       : '—'}
                   </Text>
