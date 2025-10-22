@@ -10,8 +10,20 @@ import {
   Stack,
   Text,
   VStack,
+  Wrap,
+  WrapItem,
 } from '@chakra-ui/react'
-import type { CollectionDto } from '@/api/types'
+import type { CollectionDto, StorageTargetId } from '@/api/types'
+
+const STORAGE_TARGET_LABELS: Record<StorageTargetId, string> = {
+  'pixie-tabular-db': 'Pixie Tabular DB',
+  'pixie-rag-db': 'Pixie RAG DB',
+}
+
+function describeTarget(target: StorageTargetId | undefined) {
+  if (!target) return 'Onbekende opslag'
+  return STORAGE_TARGET_LABELS[target] ?? target
+}
 
 export interface CollectionSelectorProps {
   collections: CollectionDto[]
@@ -101,6 +113,8 @@ function CollectionRow({
   onDelete,
 }: CollectionRowProps) {
   const documentCount = collection.document_count ?? 0
+  const storageTargets = collection.storage_targets ?? ['pixie-tabular-db']
+  const plannedTargets = collection.planned_storage_targets ?? []
   return (
     <Card.Root
       variant="subtle"
@@ -115,6 +129,22 @@ function CollectionRow({
         <HStack justify="space-between" align="flex-start">
           <Stack gap={0}>
             <Text fontWeight="semibold">{collection.name}</Text>
+            <Wrap spacing={1} pt={1}>
+              {storageTargets.map((target) => (
+                <WrapItem key={`active-${target}`}>
+                  <Badge colorScheme="purple" variant="subtle">
+                    {describeTarget(target)}
+                  </Badge>
+                </WrapItem>
+              ))}
+              {plannedTargets.map((target) => (
+                <WrapItem key={`planned-${target}`}>
+                  <Badge colorScheme="orange" variant="outline">
+                    {describeTarget(target)} gepland
+                  </Badge>
+                </WrapItem>
+              ))}
+            </Wrap>
           </Stack>
           <HStack gap={2} align="center">
             <Badge colorScheme={documentCount > 0 ? 'purple' : 'gray'}>

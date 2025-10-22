@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { describeAcceptedFileTypes, isTabularFile } from '@/utils/fileValidation'
+import {
+  describeAcceptedFileTypes,
+  getFileHandlingPlan,
+  type FileHandlingPlan,
+} from '@/utils/fileValidation'
 
 function makeFile(name: string, type: string) {
   return new File(['dummy'], name, { type })
 }
 
-describe('isTabularFile', () => {
+describe('getFileHandlingPlan', () => {
   it('accepts csv files by extension', () => {
     const file = makeFile('data.csv', 'application/octet-stream')
-    expect(isTabularFile(file)).toBe(true)
+    const plan = getFileHandlingPlan(file)
+    expect(plan).not.toBeNull()
+    expect((plan as FileHandlingPlan).category).toBe('tabular')
   })
 
   it('accepts xlsx files by mime type', () => {
@@ -16,12 +22,14 @@ describe('isTabularFile', () => {
       'report.unknown',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    expect(isTabularFile(file)).toBe(true)
+    const plan = getFileHandlingPlan(file)
+    expect(plan).not.toBeNull()
+    expect((plan as FileHandlingPlan).activeTargets).toContain('pixie-tabular-db')
   })
 
   it('rejects unsupported files', () => {
     const file = makeFile('image.png', 'image/png')
-    expect(isTabularFile(file)).toBe(false)
+    expect(getFileHandlingPlan(file)).toBeNull()
   })
 })
 

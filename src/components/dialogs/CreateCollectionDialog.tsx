@@ -53,8 +53,14 @@ export function CreateCollectionDialog({ isOpen, onClose, onCreated }: CreateCol
       const result = await mutation.mutateAsync({ name: values.name })
       toast({
         title: 'Collectie aangemaakt',
-        description: `Collectie ${result.name} is succesvol aangemaakt`,
+        description: `Collectie ${result.name} is aangemaakt in Pixie Tabular DB.`,
         status: 'success',
+      })
+      toast({
+        title: 'Pixie RAG DB volgt',
+        description:
+          'We koppelen dezelfde collectie automatisch aan Pixie RAG DB zodra de nieuwe opslaglaag actief is.',
+        status: 'info',
       })
       onCreated?.(result.name)
       onClose()
@@ -89,6 +95,10 @@ export function CreateCollectionDialog({ isOpen, onClose, onCreated }: CreateCol
                 Gebruik een beschrijvende naam die overeenkomt met de dataset.
               </Text>
             </Field.Root>
+            <Text fontSize="sm" color="gray.600" mt={4}>
+              Collecties worden standaard aangemaakt in Pixie Tabular DB. De koppeling met Pixie RAG DB
+              is onderweg en markeren we alvast als gepland.
+            </Text>
           </Dialog.Body>
           <Dialog.Footer gap={2}>
             <Button variant="ghost" onClick={onClose}>
