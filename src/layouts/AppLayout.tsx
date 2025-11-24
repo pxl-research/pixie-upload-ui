@@ -1,18 +1,8 @@
-import { Box, Button, Container, Flex, Heading, Text } from '@chakra-ui/react'
-import { Outlet, useNavigate } from 'react-router-dom'
+import { Box, Container, Flex, Heading, Text } from '@chakra-ui/react'
+import { Outlet } from 'react-router-dom'
 import { env } from '@/config/env'
-import { useAuthStore } from '@/state/authStore'
 
 export function AppLayout() {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-  const clearAuth = useAuthStore((state) => state.clear)
-  const navigate = useNavigate()
-
-  const handleLogout = () => {
-    clearAuth()
-    navigate('/login')
-  }
-
   return (
     <Flex direction="column" minH="100vh" bg="gray.50">
       <Box as="header" borderBottomWidth="1px" bg="white">
@@ -25,11 +15,6 @@ export function AppLayout() {
               Upload documenten (tabular & RAG) en beheer collecties binnen Pixie.
             </Text>
           </Box>
-          {isAuthenticated ? (
-            <Button size="sm" variant="outline" onClick={handleLogout}>
-              Afmelden
-            </Button>
-          ) : null}
         </Container>
       </Box>
 

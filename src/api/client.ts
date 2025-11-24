@@ -6,14 +6,9 @@ import type {
 } from 'axios'
 import axios, { AxiosHeaders } from 'axios'
 import { env } from '@/config/env'
-import { useAuthStore } from '@/state/authStore'
 import { log } from '@/utils/logger'
 
 const API_KEY_HEADER = 'X-API-Key'
-const ADMIN_TOKEN_HEADER = 'X-Admin-Token'
-const BASIC_AUTH_HEADER = 'Authorization'
-const mutatingMethods = new Set(['post', 'put', 'patch', 'delete'])
-const isHealthRoute = (url?: string) => (url ?? '').endsWith('/health')
 
 export type ApiTarget = 'tabular' | 'rag'
 
@@ -76,21 +71,6 @@ function getClient(target: ApiTarget): AxiosInstance {
       : AxiosHeaders.from(requestConfig.headers as AxiosRequestHeaders | undefined)
 
     headers.set(API_KEY_HEADER, config.apiKey)
-
-    const { basicAuthHeader, adminToken } = useAuthStore.getState()
-    if (basicAuthHeader) {
-      headers.set(BASIC_AUTH_HEADER, basicAuthHeader)
-    }
-
-    const method = requestConfig.method?.toLowerCase()
-    if (
-      adminToken &&
-      method &&
-      mutatingMethods.has(method) &&
-      !isHealthRoute(requestConfig.url)
-    ) {
-      headers.set(ADMIN_TOKEN_HEADER, adminToken)
-    }
 
     return {
       ...requestConfig,

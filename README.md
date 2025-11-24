@@ -35,5 +35,29 @@ De PiXie Upload UI is een eenvoudige webapp waarin medewerkers documenten verzam
 - `VITE_RAG_API_KEY`: API key voor de rag backend.
 
 ## Authenticatie
-- UI toont een loginpagina voor Basic Auth. Vul `username`, `password` en optioneel een `X-Admin-Token` (gebruikt bij mutaties: create/update/delete).
-- De gegevens worden als header meegestuurd bij elke API-call en alleen in de huidige browsersessie opgeslagen (sessionStorage).
+- Aanbevolen: zet Basic Auth op de reverse proxy/ingress zodat de UI alleen bereikbaar is na server-side login. De front-end zelf bevat geen ingebouwde login meer.
+- API-calls gebruiken enkel de API keys uit de configuratie (`VITE_TABULAR_API_KEY`, `VITE_RAG_API_KEY`).
+
+### Voorbeeld: Nginx (single host)
+1) Maak htpasswd: `htpasswd -c .htpasswd admin`
+2) Nginx locatie:
+```
+location / {
+  auth_basic "Pixie Upload UI";
+  auth_basic_user_file /etc/nginx/.htpasswd;
+  proxy_pass http://ui:5173;
+}
+```
+
+### Voorbeeld: Kubernetes (Nginx Ingress)
+- Secret met htpasswd: `kubectl create secret generic ui-basicauth --from-file=auth` (bestand `auth` bevat htpasswd regels).
+- Annotaties op de ingress:
+```
+nginx.ingress.kubernetes.io/auth-type: basic
+nginx.ingress.kubernetes.io/auth-secret: ui-basicauth
+nginx.ingress.kubernetes.io/auth-realm: "Pixie Upload UI"
+```
+
+### Voorbeeld: Traefik middleware
+- Middleware: `traefik.http.middlewares.ui-auth.basicauth.usersfile=/secrets/ui-users`
+- Koppel de middleware aan de router van de UI.
