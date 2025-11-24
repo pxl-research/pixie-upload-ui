@@ -22,3 +22,9 @@ De PiXie Upload UI is een eenvoudige webapp waarin medewerkers documenten verzam
 - Alles op één plek: uploaden, groeperen, bijwerken en opschonen.
 - Geen technische kennis nodig; de interface begeleidt je stap voor stap.
 - Klaar voor groei: nieuwe collecties of extra documenten voeg je in minuten toe, zodat PiXie altijd op de hoogte blijft.
+
+## Configuratie (tabular backend)
+- `VITE_TABULAR_API_BASE_URL`: basis-URL van de tabular backend (default: `http://localhost:8000`).
+- `VITE_TABULAR_API_PROXY_TARGET`: target voor Vite-proxy wanneer je `/api` gebruikt tijdens lokaal draaien.
+- `VITE_TABULAR_API_KEY`: API key die als `X-API-Key` wordt meegestuurd.
+- `VITE_LOG_LEVEL`: logniveau (bijv. `info`).

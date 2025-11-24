@@ -3,18 +3,23 @@ import { z } from 'zod'
 const EnvSchema = z
   .object({
     VITE_APP_NAME: z.string().min(1).default('Pixie Upload UI'),
-    VITE_API_BASE_URL: z.string().min(1).default('http://localhost:8000'),
-    VITE_API_PROXY_TARGET: z.string().min(1).optional(),
-    VITE_API_KEY: z.string().min(1, 'VITE_API_KEY is required for API access'),
+    VITE_TABULAR_API_BASE_URL: z
+      .string()
+      .min(1, 'VITE_TABULAR_API_BASE_URL is required for API access')
+      .default('http://localhost:8000'),
+    VITE_TABULAR_API_PROXY_TARGET: z.string().min(1).optional(),
+    VITE_TABULAR_API_KEY: z
+      .string()
+      .min(1, 'VITE_TABULAR_API_KEY is required for API access'),
     VITE_LOG_LEVEL: z
       .enum(['trace', 'debug', 'info', 'warn', 'error', 'silent'])
       .default('info'),
   })
   .transform((raw) => ({
     appName: raw.VITE_APP_NAME || 'Pixie Upload UI',
-    apiBaseUrl: raw.VITE_API_BASE_URL,
-    apiProxyTarget: raw.VITE_API_PROXY_TARGET,
-    apiKey: raw.VITE_API_KEY,
+    tabularApiBaseUrl: raw.VITE_TABULAR_API_BASE_URL,
+    tabularApiProxyTarget: raw.VITE_TABULAR_API_PROXY_TARGET,
+    tabularApiKey: raw.VITE_TABULAR_API_KEY,
     logLevel: raw.VITE_LOG_LEVEL,
   }))
 
@@ -46,9 +51,9 @@ function resolveRuntimeEnv(): Partial<EnvInput> {
 function resolveBuildTimeEnv(): Partial<EnvInput> {
   return {
     VITE_APP_NAME: import.meta.env.VITE_APP_NAME,
-    VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
-    VITE_API_PROXY_TARGET: import.meta.env.VITE_API_PROXY_TARGET,
-    VITE_API_KEY: import.meta.env.VITE_API_KEY,
+    VITE_TABULAR_API_BASE_URL: import.meta.env.VITE_TABULAR_API_BASE_URL,
+    VITE_TABULAR_API_PROXY_TARGET: import.meta.env.VITE_TABULAR_API_PROXY_TARGET,
+    VITE_TABULAR_API_KEY: import.meta.env.VITE_TABULAR_API_KEY,
     VITE_LOG_LEVEL: import.meta.env.VITE_LOG_LEVEL,
   }
 }

@@ -34,10 +34,10 @@ export class ApiError extends Error {
 }
 
 const client = axios.create({
-  baseURL: env.apiBaseUrl,
+  baseURL: env.tabularApiBaseUrl,
   timeout: 30_000,
   headers: {
-    [API_KEY_HEADER]: env.apiKey,
+    [API_KEY_HEADER]: env.tabularApiKey,
   },
 })
 
@@ -46,7 +46,7 @@ client.interceptors.request.use((config) => {
     ? config.headers
     : AxiosHeaders.from(config.headers as AxiosRequestHeaders | undefined)
 
-  headers.set(API_KEY_HEADER, env.apiKey)
+  headers.set(API_KEY_HEADER, env.tabularApiKey)
   return {
     ...config,
     headers,

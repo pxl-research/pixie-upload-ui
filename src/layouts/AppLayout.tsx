@@ -23,7 +23,7 @@ export function AppLayout() {
       <Box as="footer" borderTopWidth="1px" bg="white">
         <Container maxW="6xl" py={4}>
           <Text fontSize="xs" color="gray.500">
-            Verbonden met backend: {env.apiBaseUrl}
+            Verbonden met tabular backend: {env.tabularApiBaseUrl}
           </Text>
         </Container>
       </Box>
