@@ -197,6 +197,10 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
       file: selectedUpload.file,
       language: values.language,
       signal: controller.signal,
+      targets:
+        selectedUpload.plan.activeTargets.length > 0
+          ? selectedUpload.plan.activeTargets
+          : (['pixie-tabular-db'] as StorageTarget[]),
     }
 
     try {

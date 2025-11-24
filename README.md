@@ -28,3 +28,12 @@ De PiXie Upload UI is een eenvoudige webapp waarin medewerkers documenten verzam
 - `VITE_TABULAR_API_PROXY_TARGET`: target voor Vite-proxy wanneer je `/api` gebruikt tijdens lokaal draaien.
 - `VITE_TABULAR_API_KEY`: API key die als `X-API-Key` wordt meegestuurd.
 - `VITE_LOG_LEVEL`: logniveau (bijv. `info`).
+
+## Configuratie (rag backend)
+- `VITE_RAG_API_BASE_URL`: basis-URL van de rag backend (bijv. `http://localhost:8010`).
+- `VITE_RAG_API_PROXY_TARGET`: target voor Vite-proxy voor de rag backend (alleen nodig als je een relatieve base URL gebruikt tijdens dev).
+- `VITE_RAG_API_KEY`: API key voor de rag backend.
+
+## Authenticatie
+- UI toont een loginpagina voor Basic Auth. Vul `username`, `password` en optioneel een `X-Admin-Token` (gebruikt bij mutaties: create/update/delete).
+- De gegevens worden als header meegestuurd bij elke API-call en alleen in de huidige browsersessie opgeslagen (sessionStorage).

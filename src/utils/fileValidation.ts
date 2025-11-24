@@ -43,27 +43,24 @@ const FILE_HANDLING_RULES: FileHandlingRule[] = [
     extensions: ['.md'],
     label: 'Markdown',
     category: 'unstructured',
-    activeTargets: [],
-    plannedTargets: ['pixie-rag-db'],
-    status: 'comingSoon',
+    activeTargets: ['pixie-rag-db'],
+    status: 'supported',
     requiresPreprocessing: true,
   },
   {
     extensions: ['.docx'],
     label: 'Word',
     category: 'unstructured',
-    activeTargets: [],
-    plannedTargets: ['pixie-rag-db'],
-    status: 'comingSoon',
+    activeTargets: ['pixie-rag-db'],
+    status: 'supported',
     requiresPreprocessing: true,
   },
   {
     extensions: ['.pdf'],
     label: 'PDF',
     category: 'unstructured',
-    activeTargets: [],
-    plannedTargets: ['pixie-rag-db'],
-    status: 'comingSoon',
+    activeTargets: ['pixie-rag-db'],
+    status: 'supported',
     requiresPreprocessing: true,
   },
 ]
@@ -118,12 +115,12 @@ export function getFileHandlingPlan(file: File): FileHandlingPlan | null {
     if (mimeRule) {
       return {
         extension,
-      label: mimeRule.label,
-      category: mimeRule.category,
-      activeTargets: mimeRule.activeTargets,
-      plannedTargets: mimeRule.plannedTargets ?? [],
-      status: mimeRule.status,
-      requiresPreprocessing: Boolean(mimeRule.requiresPreprocessing),
+        label: mimeRule.label,
+        category: mimeRule.category,
+        activeTargets: mimeRule.activeTargets,
+        plannedTargets: mimeRule.plannedTargets ?? [],
+        status: mimeRule.status,
+        requiresPreprocessing: Boolean(mimeRule.requiresPreprocessing),
       }
     }
   }

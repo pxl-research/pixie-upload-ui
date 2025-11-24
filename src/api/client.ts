@@ -1,13 +1,21 @@
 import type {
   AxiosError,
+  AxiosInstance,
   AxiosRequestConfig,
   AxiosRequestHeaders,
 } from 'axios'
 import axios, { AxiosHeaders } from 'axios'
 import { env } from '@/config/env'
+import { useAuthStore } from '@/state/authStore'
 import { log } from '@/utils/logger'
 
 const API_KEY_HEADER = 'X-API-Key'
+const ADMIN_TOKEN_HEADER = 'X-Admin-Token'
+const BASIC_AUTH_HEADER = 'Authorization'
+const mutatingMethods = new Set(['post', 'put', 'patch', 'delete'])
+const isHealthRoute = (url?: string) => (url ?? '').endsWith('/health')
+
+export type ApiTarget = 'tabular' | 'rag'
 
 export type ApiErrorDetail =
   | string
@@ -33,73 +41,120 @@ export class ApiError extends Error {
   }
 }
 
-const client = axios.create({
-  baseURL: env.tabularApiBaseUrl,
-  timeout: 30_000,
-  headers: {
-    [API_KEY_HEADER]: env.tabularApiKey,
+const apiConfigs: Record<ApiTarget, { baseURL?: string; apiKey?: string }> = {
+  tabular: {
+    baseURL: env.tabularApiBaseUrl,
+    apiKey: env.tabularApiKey,
   },
-})
+  rag: {
+    baseURL: env.ragApiBaseUrl,
+    apiKey: env.ragApiKey,
+  },
+}
 
-client.interceptors.request.use((config) => {
-  const headers = config.headers instanceof AxiosHeaders
-    ? config.headers
-    : AxiosHeaders.from(config.headers as AxiosRequestHeaders | undefined)
+const apiClients: Partial<Record<ApiTarget, AxiosInstance>> = {}
 
-  headers.set(API_KEY_HEADER, env.tabularApiKey)
-  return {
-    ...config,
-    headers,
+function getClient(target: ApiTarget): AxiosInstance {
+  if (apiClients[target]) return apiClients[target] as AxiosInstance
+
+  const config = apiConfigs[target]
+  if (!config?.baseURL) {
+    throw new Error(`API base URL ontbreekt voor target ${target}`)
   }
-})
+  if (!config?.apiKey) {
+    throw new Error(`API key ontbreekt voor target ${target}`)
+  }
 
-client.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError<ApiErrorPayload>) => {
-    const status = error.response?.status
-    const payload = error.response?.data
+  const client = axios.create({
+    baseURL: config.baseURL,
+    timeout: 30_000,
+  })
 
-    const resolveDetail = (value: ApiErrorDetail | undefined): string | undefined => {
-      if (!value) return undefined
-      if (typeof value === 'string') return value
-      if (Array.isArray(value)) {
-        return value
-          .map((item) => {
-            if (typeof item === 'string') return item
-            try {
-              return JSON.stringify(item)
-            } catch {
-              return String(item)
-            }
-          })
-          .join('\n')
-      }
-      try {
-        return JSON.stringify(value)
-      } catch {
-        return String(value)
-      }
+  client.interceptors.request.use((requestConfig) => {
+    const headers = requestConfig.headers instanceof AxiosHeaders
+      ? requestConfig.headers
+      : AxiosHeaders.from(requestConfig.headers as AxiosRequestHeaders | undefined)
+
+    headers.set(API_KEY_HEADER, config.apiKey)
+
+    const { basicAuthHeader, adminToken } = useAuthStore.getState()
+    if (basicAuthHeader) {
+      headers.set(BASIC_AUTH_HEADER, basicAuthHeader)
     }
 
-    const message =
-      resolveDetail(payload?.detail) ??
-      payload?.message ??
-      error.message ??
-      'Unexpected API error'
+    const method = requestConfig.method?.toLowerCase()
+    if (
+      adminToken &&
+      method &&
+      mutatingMethods.has(method) &&
+      !isHealthRoute(requestConfig.url)
+    ) {
+      headers.set(ADMIN_TOKEN_HEADER, adminToken)
+    }
 
-    log.error('API request failed', {
-      message,
-      status,
-      url: error.config?.url,
-      method: error.config?.method,
-    })
+    return {
+      ...requestConfig,
+      headers,
+    }
+  })
 
-    return Promise.reject(new ApiError(message, status, payload))
-  },
-)
+  client.interceptors.response.use(
+    (response) => response,
+    (error: AxiosError<ApiErrorPayload>) => {
+      const status = error.response?.status
+      const payload = error.response?.data
 
-export function request<T>(config: AxiosRequestConfig) {
+      const resolveDetail = (value: ApiErrorDetail | undefined): string | undefined => {
+        if (!value) return undefined
+        if (typeof value === 'string') return value
+        if (Array.isArray(value)) {
+          return value
+            .map((item) => {
+              if (typeof item === 'string') return item
+              try {
+                return JSON.stringify(item)
+              } catch {
+                return String(item)
+              }
+            })
+            .join('\n')
+        }
+        try {
+          return JSON.stringify(value)
+        } catch {
+          return String(value)
+        }
+      }
+
+      const message =
+        resolveDetail(payload?.detail) ??
+        payload?.message ??
+        error.message ??
+        'Unexpected API error'
+
+      log.error('API request failed', {
+        message,
+        status,
+        url: error.config?.url,
+        method: error.config?.method,
+      })
+
+      return Promise.reject(new ApiError(message, status, payload))
+    },
+  )
+
+  apiClients[target] = client
+  return client
+}
+
+export interface RequestConfig<T = unknown> extends AxiosRequestConfig<T> {
+  target?: ApiTarget
+}
+
+export function request<T>(config: RequestConfig) {
+  const target = config.target ?? 'tabular'
+  const client = getClient(target)
   return client.request<T>(config).then((response) => response.data)
 }
 
-export { client as apiClient }
+export { getClient as apiClient }

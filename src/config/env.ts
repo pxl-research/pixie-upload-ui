@@ -11,6 +11,9 @@ const EnvSchema = z
     VITE_TABULAR_API_KEY: z
       .string()
       .min(1, 'VITE_TABULAR_API_KEY is required for API access'),
+    VITE_RAG_API_BASE_URL: z.string().min(1).optional(),
+    VITE_RAG_API_PROXY_TARGET: z.string().min(1).optional(),
+    VITE_RAG_API_KEY: z.string().min(1).optional(),
     VITE_LOG_LEVEL: z
       .enum(['trace', 'debug', 'info', 'warn', 'error', 'silent'])
       .default('info'),
@@ -20,6 +23,9 @@ const EnvSchema = z
     tabularApiBaseUrl: raw.VITE_TABULAR_API_BASE_URL,
     tabularApiProxyTarget: raw.VITE_TABULAR_API_PROXY_TARGET,
     tabularApiKey: raw.VITE_TABULAR_API_KEY,
+    ragApiBaseUrl: raw.VITE_RAG_API_BASE_URL,
+    ragApiProxyTarget: raw.VITE_RAG_API_PROXY_TARGET,
+    ragApiKey: raw.VITE_RAG_API_KEY,
     logLevel: raw.VITE_LOG_LEVEL,
   }))
 
@@ -54,6 +60,9 @@ function resolveBuildTimeEnv(): Partial<EnvInput> {
     VITE_TABULAR_API_BASE_URL: import.meta.env.VITE_TABULAR_API_BASE_URL,
     VITE_TABULAR_API_PROXY_TARGET: import.meta.env.VITE_TABULAR_API_PROXY_TARGET,
     VITE_TABULAR_API_KEY: import.meta.env.VITE_TABULAR_API_KEY,
+    VITE_RAG_API_BASE_URL: import.meta.env.VITE_RAG_API_BASE_URL,
+    VITE_RAG_API_PROXY_TARGET: import.meta.env.VITE_RAG_API_PROXY_TARGET,
+    VITE_RAG_API_KEY: import.meta.env.VITE_RAG_API_KEY,
     VITE_LOG_LEVEL: import.meta.env.VITE_LOG_LEVEL,
   }
 }

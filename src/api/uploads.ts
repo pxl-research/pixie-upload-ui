@@ -1,8 +1,9 @@
 import type { AxiosProgressEvent } from 'axios'
 import type { DocumentDto, UploadMetadata } from '@/api/types'
-import { request } from '@/api/client'
+import { request, type ApiTarget } from '@/api/client'
 import { routes } from '@/api/routes'
 import { UploadResponseSchema } from '@/api/types'
+import type { StorageTarget } from '@/utils/fileValidation'
 
 export interface UploadDocumentInput extends UploadMetadata {
   file: File
@@ -13,7 +14,12 @@ export interface UploadDocumentOptions {
   signal?: AbortSignal
 }
 
-export async function uploadDocument(
+function storageTargetToApiTarget(target: StorageTarget): ApiTarget {
+  return target === 'pixie-rag-db' ? 'rag' : 'tabular'
+}
+
+export async function uploadDocumentToTarget(
+  target: StorageTarget,
   collectionName: string,
   payload: UploadDocumentInput,
   options?: UploadDocumentOptions,
@@ -40,7 +46,11 @@ export async function uploadDocument(
     onUploadProgress: options?.onUploadProgress,
     signal: options?.signal,
     timeout: 120_000,
+    target: storageTargetToApiTarget(target),
   })
 
-  return UploadResponseSchema.parse(data)
+  return {
+    target,
+    documents: UploadResponseSchema.parse(data),
+  }
 }

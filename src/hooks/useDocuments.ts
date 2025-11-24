@@ -3,10 +3,11 @@ import type { CollectionDto, DocumentDto } from '@/api/types'
 import { deleteDocument, fetchDocuments, updateDocument } from '@/api/documents'
 import { queryKeys } from '@/api/queryKeys'
 import {
-  uploadDocument,
+  uploadDocumentToTarget,
   type UploadDocumentInput,
   type UploadDocumentOptions,
 } from '@/api/uploads'
+import type { StorageTarget } from '@/utils/fileValidation'
 import type { DocumentUpdateInput } from '@/api/types'
 
 export function useDocumentsQuery(collectionName?: string) {
@@ -23,7 +24,9 @@ export function useDocumentsQuery(collectionName?: string) {
   })
 }
 
-export interface UploadDocumentVariables extends UploadDocumentInput, UploadDocumentOptions {}
+export interface UploadDocumentVariables extends UploadDocumentInput, UploadDocumentOptions {
+  targets?: StorageTarget[]
+}
 
 export function useUploadDocumentMutation(collectionName?: string) {
   const queryClient = useQueryClient()
@@ -33,10 +36,21 @@ export function useUploadDocumentMutation(collectionName?: string) {
       if (!collectionName) {
         return Promise.reject(new Error('collectionName is required'))
       }
-      const { onUploadProgress, signal, ...payload } = input
-      return uploadDocument(collectionName, payload, {
-        onUploadProgress,
-        signal,
+      const { onUploadProgress, signal, targets: targetInput, ...payload } = input
+      const targets = targetInput && targetInput.length > 0
+        ? targetInput
+        : (['pixie-tabular-db'] as StorageTarget[])
+
+      return Promise.all(
+        targets.map((target) =>
+          uploadDocumentToTarget(target, collectionName, payload, {
+            onUploadProgress,
+            signal,
+          }),
+        ),
+      ).then((results) => {
+        const tabularResult = results.find((result) => result.target === 'pixie-tabular-db')
+        return tabularResult?.documents ?? results[0]?.documents ?? []
       })
     },
     onSuccess: async (documents) => {
