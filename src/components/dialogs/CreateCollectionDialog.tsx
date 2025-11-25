@@ -53,14 +53,8 @@ export function CreateCollectionDialog({ isOpen, onClose, onCreated }: CreateCol
       const result = await mutation.mutateAsync({ name: values.name })
       toast({
         title: 'Collectie aangemaakt',
-        description: `Collectie ${result.name} is aangemaakt in Pixie Tabular DB.`,
+        description: `Collectie ${result.name} is aangemaakt in Pixie Tabular DB en RAG DB.`,
         status: 'success',
-      })
-      toast({
-        title: 'Pixie RAG DB volgt',
-        description:
-          'We koppelen dezelfde collectie automatisch aan Pixie RAG DB zodra de nieuwe opslaglaag actief is.',
-        status: 'info',
       })
       onCreated?.(result.name)
       onClose()
@@ -68,7 +62,7 @@ export function CreateCollectionDialog({ isOpen, onClose, onCreated }: CreateCol
       const description =
         error instanceof Error ? error.message : 'Kon collectie niet aanmaken'
       toast({
-        title: 'Aanmaken mislukt',
+        title: 'Aanmaken deels of geheel mislukt',
         description,
         status: 'error',
       })
@@ -96,8 +90,7 @@ export function CreateCollectionDialog({ isOpen, onClose, onCreated }: CreateCol
               </Text>
             </Field.Root>
             <Text fontSize="sm" color="gray.600" mt={4}>
-              Collecties worden standaard aangemaakt in Pixie Tabular DB. De koppeling met Pixie RAG DB
-              is onderweg en markeren we alvast als gepland.
+              Collecties worden nu aangemaakt in zowel Pixie Tabular DB als Pixie RAG DB.
             </Text>
           </Dialog.Body>
           <Dialog.Footer gap={2}>
