@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CollectionDto, DocumentDto } from '@/api/types'
-import { deleteDocument, fetchDocuments, updateDocument } from '@/api/documents'
+import {
+  deleteDocument,
+  deleteRagDocument,
+  fetchDocuments,
+  fetchRagDocuments,
+  updateDocument,
+} from '@/api/documents'
 import { queryKeys } from '@/api/queryKeys'
 import {
   uploadDocumentToTarget,
@@ -13,19 +19,48 @@ import type { DocumentUpdateInput } from '@/api/types'
 export function useDocumentsQuery(collectionName?: string) {
   return useQuery({
     queryKey: collectionName ? queryKeys.documents(collectionName) : ['documents'],
-    queryFn: () => {
-      if (!collectionName) {
-        return Promise.resolve([])
-      }
-
-      return fetchDocuments(collectionName)
-    },
+    queryFn: () => fetchUnifiedDocuments(collectionName),
     enabled: Boolean(collectionName),
   })
 }
 
 export interface UploadDocumentVariables extends UploadDocumentInput, UploadDocumentOptions {
   targets?: StorageTarget[]
+}
+
+async function fetchUnifiedDocuments(collectionName?: string) {
+  if (!collectionName) return []
+
+  const [tabularResult, ragResult] = await Promise.allSettled([
+    fetchDocuments(collectionName),
+    fetchRagDocuments(collectionName),
+  ])
+
+  const tabular = tabularResult.status === 'fulfilled' ? tabularResult.value : []
+  const rag = ragResult.status === 'fulfilled' ? ragResult.value : []
+
+  if (ragResult.status === 'rejected') {
+    // eslint-disable-next-line no-console
+    console.warn('RAG documents fetch failed', ragResult.reason)
+  }
+
+  return mergeDocuments(tabular, rag)
+}
+
+function mergeDocuments(tabular: DocumentDto[], rag: DocumentDto[]): DocumentDto[] {
+  const map = new Map<string, DocumentDto>()
+
+  const add = (doc: DocumentDto) => {
+    const key = doc.file_name || String(doc.id)
+    if (!map.has(key)) {
+      map.set(key, doc)
+    }
+  }
+
+  tabular.forEach(add)
+  rag.forEach(add)
+
+  return Array.from(map.values())
 }
 
 export function useUploadDocumentMutation(collectionName?: string) {
@@ -108,11 +143,28 @@ export function useDeleteDocumentMutation(collectionName?: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (documentId: number | string) => {
+    mutationFn: async (documentId: number | string) => {
       if (!collectionName) {
         return Promise.reject(new Error('collectionName is required'))
       }
-      return deleteDocument(collectionName, documentId)
+      const errors: string[] = []
+      let deletedSomewhere = false
+
+      const tryDelete = async (fn: () => Promise<void>) => {
+        try {
+          await fn()
+          deletedSomewhere = true
+        } catch (error) {
+          errors.push(error instanceof Error ? error.message : 'Onbekende fout')
+        }
+      }
+
+      await tryDelete(() => deleteDocument(collectionName, documentId))
+      await tryDelete(() => deleteRagDocument(collectionName, String(documentId)))
+
+      if (!deletedSomewhere && errors.length > 0) {
+        throw new Error(errors.join(' | '))
+      }
     },
     onSuccess: async () => {
       if (!collectionName) return
