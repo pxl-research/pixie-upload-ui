@@ -47,19 +47,21 @@ function resolveEnabledTargets(value: EnabledBackends): {
 
 const EnvSchema = z
   .object({
+    TABULAR_API_BASE_URL: z.string().min(1).default(TABULAR_API_BASE_URL),
     TABULAR_API_KEY: z
       .string()
       .min(1, 'TABULAR_API_KEY is required for API access'),
     RAG_API_KEY: z.string().min(1).optional(),
+    RAG_API_BASE_URL: z.string().min(1).default(RAG_API_BASE_URL),
     LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
     ENABLED_BACKENDS: z.enum(ENABLED_BACKENDS).default('both'),
   })
   .transform((raw) => ({
     appName: APP_NAME,
-    tabularApiBaseUrl: TABULAR_API_BASE_URL,
+    tabularApiBaseUrl: raw.TABULAR_API_BASE_URL,
     tabularApiProxyTarget: TABULAR_API_PROXY_TARGET,
     tabularApiKey: raw.TABULAR_API_KEY,
-    ragApiBaseUrl: RAG_API_BASE_URL,
+    ragApiBaseUrl: raw.RAG_API_BASE_URL,
     ragApiProxyTarget: RAG_API_PROXY_TARGET,
     ragApiKey: raw.RAG_API_KEY,
     logLevel: raw.LOG_LEVEL,
@@ -94,8 +96,10 @@ function resolveRuntimeEnv(): Partial<EnvInput> {
   }
 
   return {
+    TABULAR_API_BASE_URL: pickString('TABULAR_API_BASE_URL'),
     TABULAR_API_KEY: pickString('TABULAR_API_KEY'),
     RAG_API_KEY: pickString('RAG_API_KEY'),
+    RAG_API_BASE_URL: pickString('RAG_API_BASE_URL'),
     LOG_LEVEL: normalizeLogLevel(pickString('LOG_LEVEL')) ?? undefined,
     ENABLED_BACKENDS: normalizeEnabledBackends(pickString('ENABLED_BACKENDS')),
   }
@@ -110,8 +114,12 @@ function resolveBuildTimeEnv(): Partial<EnvInput> {
   }
 
   const importEnv = import.meta.env as unknown as Record<string, unknown>
+  const tabularApiBaseUrl =
+    pickString(importEnv, 'TABULAR_API_BASE_URL') ?? pickString(nodeEnv, 'TABULAR_API_BASE_URL')
   const tabularApiKey =
     pickString(importEnv, 'TABULAR_API_KEY') ?? pickString(nodeEnv, 'TABULAR_API_KEY')
+  const ragApiBaseUrl =
+    pickString(importEnv, 'RAG_API_BASE_URL') ?? pickString(nodeEnv, 'RAG_API_BASE_URL')
   const ragApiKey =
     pickString(importEnv, 'RAG_API_KEY') ?? pickString(nodeEnv, 'RAG_API_KEY')
   const logLevel = normalizeLogLevel(
@@ -122,7 +130,9 @@ function resolveBuildTimeEnv(): Partial<EnvInput> {
   )
 
   return {
+    TABULAR_API_BASE_URL: tabularApiBaseUrl,
     TABULAR_API_KEY: tabularApiKey,
+    RAG_API_BASE_URL: ragApiBaseUrl,
     RAG_API_KEY: ragApiKey,
     LOG_LEVEL: logLevel,
     ENABLED_BACKENDS: enabledBackends,

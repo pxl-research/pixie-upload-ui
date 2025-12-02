@@ -24,13 +24,13 @@ De PiXie Upload UI is een eenvoudige webapp waarin medewerkers documenten verzam
 - Klaar voor groei: nieuwe collecties of extra documenten voeg je in minuten toe, zodat PiXie altijd op de hoogte blijft.
 
 ## Configuratie (tabular backend)
-- Basis-URL en proxy voor tabular zijn intern gefixeerd op `/tabular` met target `http://pixie_tabular_api:8000`.
+- Basis-URL tabular: `TABULAR_API_BASE_URL` (default `http://informer-api:8000`); pas aan naar je eigen host/poort.
 - `TABULAR_API_KEY`: API key die als `X-API-Key` wordt meegestuurd.
 - `LOG_LEVEL`: logniveau (bijv. `info`).
 - `ENABLED_BACKENDS`: kies `both` (default), `tabular` of `rag` om de beschikbare opslagdoelen te bepalen. Niet-geactiveerde backends worden overgeslagen en geven een melding bij uploads die daarop zouden moeten landen.
 
 ## Configuratie (rag backend)
-- Basis-URL en proxy voor rag zijn intern gefixeerd op `/rag` met target `http://pixie_rag_api:8000`.
+- Basis-URL rag: `RAG_API_BASE_URL` (default `http://rag-api:8000`); pas aan naar je eigen host/poort.
 - `RAG_API_KEY`: API key voor de rag backend.
 
 ## Authenticatie

@@ -27,16 +27,6 @@ esac
 TABULAR_PROXY_TARGET="${TABULAR_PROXY_TARGET:-http://tabular-api:8000/}"
 RAG_PROXY_TARGET="${RAG_PROXY_TARGET:-http://rag-api:8000/}"
 
-# Ensure proxy targets end with a slash so path rewriting strips the prefix correctly
-case "$TABULAR_PROXY_TARGET" in
-  */) ;;
-  *) TABULAR_PROXY_TARGET="${TABULAR_PROXY_TARGET}/" ;;
-esac
-case "$RAG_PROXY_TARGET" in
-  */) ;;
-  *) RAG_PROXY_TARGET="${RAG_PROXY_TARGET}/" ;;
-esac
-
 echo "=== Pixie Upload UI - Runtime Environment Configuration ==="
 
 # Load runtime .env if present
@@ -90,7 +80,7 @@ else
   echo "✓ Generated $CONFIG_PATH with $FOUND_VARS variables"
 fi
 
-# Generate nginx config based on enabled backends
+# Generate nginx config (static file serving only; no API proxying)
 NGINX_TMP="$(mktemp)"
 cat >"$NGINX_TMP" <<EOF
 server {
@@ -98,8 +88,6 @@ server {
     server_name _;
     root /usr/share/nginx/html;
     index index.html;
-
-    resolver 127.0.0.11 ipv6=off;
 
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -114,42 +102,6 @@ server {
         try_files \$uri =404;
     }
 EOF
-
-if [ "$TABULAR_ENABLED" -eq 1 ]; then
-  cat >>"$NGINX_TMP" <<EOF
-
-    # Proxy tabular API
-    location /tabular/ {
-        set \$tabular_upstream "$TABULAR_PROXY_TARGET";
-        rewrite ^/tabular/(.*)$ /\$1 break;
-        proxy_pass \$tabular_upstream;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-EOF
-fi
-
-if [ "$RAG_ENABLED" -eq 1 ]; then
-  cat >>"$NGINX_TMP" <<EOF
-
-    # Proxy RAG API
-    location /rag/ {
-        set \$rag_upstream "$RAG_PROXY_TARGET";
-        rewrite ^/rag/(.*)$ /\$1 break;
-        proxy_pass \$rag_upstream;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-EOF
-fi
-
-cat >>"$NGINX_TMP" <<'EOF'
 
     # SPA fallback - serve index.html for all non-file requests
     location / {
