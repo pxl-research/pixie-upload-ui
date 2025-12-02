@@ -4,7 +4,28 @@ set -eu
 CONFIG_PATH="${PIXIE_ENV_CONFIG_PATH:-/usr/share/nginx/html/env-config.js}"
 RUNTIME_ENV_FILE_DEFAULT="/usr/share/nginx/html/.env"
 RUNTIME_ENV_FILE="${PIXIE_ENV_FILE:-$RUNTIME_ENV_FILE_DEFAULT}"
+DEFAULT_NGINX_CONF="/etc/nginx/conf.d/default.conf"
 INJECT_KEYS="TABULAR_API_KEY RAG_API_KEY LOG_LEVEL ENABLED_BACKENDS"
+
+ENABLED_BACKENDS="${ENABLED_BACKENDS:-both}"
+TABULAR_ENABLED=0
+RAG_ENABLED=0
+
+case "$ENABLED_BACKENDS" in
+  both|"")
+    TABULAR_ENABLED=1
+    RAG_ENABLED=1
+    ;;
+  tabular)
+    TABULAR_ENABLED=1
+    ;;
+  rag)
+    RAG_ENABLED=1
+    ;;
+esac
+
+TABULAR_PROXY_TARGET="${TABULAR_PROXY_TARGET:-http://pixie_tabular_api:8000/}"
+RAG_PROXY_TARGET="${RAG_PROXY_TARGET:-http://pixie_rag_api:8000/}"
 
 echo "=== Pixie Upload UI - Runtime Environment Configuration ==="
 
@@ -58,6 +79,86 @@ if [ "$FOUND_VARS" -eq 0 ]; then
 else
   echo "✓ Generated $CONFIG_PATH with $FOUND_VARS variables"
 fi
+
+# Generate nginx config based on enabled backends
+NGINX_TMP="$(mktemp)"
+cat >"$NGINX_TMP" <<EOF
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    resolver 127.0.0.11 ipv6=off;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Disable caching for env-config.js (CRITICAL for runtime env injection!)
+    location = /env-config.js {
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
+        try_files \$uri =404;
+    }
+EOF
+
+if [ "$TABULAR_ENABLED" -eq 1 ]; then
+  cat >>"$NGINX_TMP" <<EOF
+
+    # Proxy tabular API
+    location /tabular/ {
+        set \$tabular_upstream "$TABULAR_PROXY_TARGET";
+        proxy_pass \$tabular_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+EOF
+fi
+
+if [ "$RAG_ENABLED" -eq 1 ]; then
+  cat >>"$NGINX_TMP" <<EOF
+
+    # Proxy RAG API
+    location /rag/ {
+        set \$rag_upstream "$RAG_PROXY_TARGET";
+        proxy_pass \$rag_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+EOF
+fi
+
+cat >>"$NGINX_TMP" <<'EOF'
+
+    # SPA fallback - serve index.html for all non-file requests
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Cache static assets aggressively
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|webp)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Disable access to hidden files
+    location ~ /\. {
+        deny all;
+    }
+}
+EOF
+
+install -m 644 "$NGINX_TMP" "$DEFAULT_NGINX_CONF"
+rm -f "$NGINX_TMP"
 
 echo "=== Starting Nginx ==="
 echo ""
