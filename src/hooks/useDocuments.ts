@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { CollectionDto, DocumentDto } from '@/api/types'
 import {
@@ -19,30 +20,36 @@ import type { DocumentUpdateInput } from '@/api/types'
 export function useDocumentsQuery(collectionName?: string) {
   const queryClient = useQueryClient()
 
-  return useQuery({
+  const query = useQuery<DocumentDto[]>({
     queryKey: collectionName ? queryKeys.documents(collectionName) : ['documents'],
     queryFn: () => fetchUnifiedDocuments(collectionName),
     enabled: Boolean(collectionName),
-    onSuccess: (documents) => {
-      if (!collectionName) return
-      queryClient.setQueryData<CollectionDto[]>(
-        queryKeys.collections,
-        (previousCollections) =>
-          previousCollections?.map((collection) =>
-            collection.name === collectionName
-              ? { ...collection, document_count: documents.length }
-              : collection,
-          ) ?? previousCollections,
-      )
-    },
   })
+
+  useEffect(() => {
+    if (!collectionName) return
+    const documents = query.data
+    if (!documents) return
+
+    queryClient.setQueryData<CollectionDto[]>(
+      queryKeys.collections,
+      (previousCollections) =>
+        previousCollections?.map((collection) =>
+          collection.name === collectionName
+            ? { ...collection, document_count: documents.length }
+            : collection,
+        ) ?? previousCollections,
+    )
+  }, [collectionName, query.data, queryClient])
+
+  return query
 }
 
 export interface UploadDocumentVariables extends UploadDocumentInput, UploadDocumentOptions {
   targets?: StorageTarget[]
 }
 
-async function fetchUnifiedDocuments(collectionName?: string) {
+async function fetchUnifiedDocuments(collectionName?: string): Promise<DocumentDto[]> {
   if (!collectionName) return []
 
   const [tabularResult, ragResult] = await Promise.allSettled([

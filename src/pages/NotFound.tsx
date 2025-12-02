@@ -1,7 +1,9 @@
 import { Button, Card, Container, Heading, Stack, Text } from '@chakra-ui/react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 export function NotFound() {
+  const navigate = useNavigate()
+
   return (
     <Container maxW="lg" py={16}>
       <Card.Root variant="outline">
@@ -11,7 +13,7 @@ export function NotFound() {
               Pagina niet gevonden
             </Heading>
             <Text color="gray.600">De opgevraagde pagina bestaat niet.</Text>
-            <Button as={Link} to="/" colorScheme="purple">
+            <Button onClick={() => navigate('/')} colorScheme="purple">
               Terug naar dashboard
             </Button>
           </Stack>

@@ -7,15 +7,21 @@ import {
   TABULAR_API_PROXY_TARGET,
 } from './constants'
 
+const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'silent'] as const
+type LogLevel = (typeof LOG_LEVELS)[number]
+
+function normalizeLogLevel(value?: string): LogLevel | undefined {
+  if (!value) return undefined
+  return LOG_LEVELS.includes(value as LogLevel) ? (value as LogLevel) : undefined
+}
+
 const EnvSchema = z
   .object({
     TABULAR_API_KEY: z
       .string()
       .min(1, 'TABULAR_API_KEY is required for API access'),
     RAG_API_KEY: z.string().min(1).optional(),
-    LOG_LEVEL: z
-      .enum(['trace', 'debug', 'info', 'warn', 'error', 'silent'])
-      .default('info'),
+    LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
   })
   .transform((raw) => ({
     appName: APP_NAME,
@@ -58,7 +64,8 @@ function resolveRuntimeEnv(): Partial<EnvInput> {
   return {
     TABULAR_API_KEY: pickString('TABULAR_API_KEY') ?? pickString('VITE_TABULAR_API_KEY'),
     RAG_API_KEY: pickString('RAG_API_KEY') ?? pickString('VITE_RAG_API_KEY'),
-    LOG_LEVEL: pickString('LOG_LEVEL') ?? pickString('VITE_LOG_LEVEL'),
+    LOG_LEVEL:
+      normalizeLogLevel(pickString('LOG_LEVEL') ?? pickString('VITE_LOG_LEVEL')) ?? undefined,
   }
 }
 
@@ -81,11 +88,12 @@ function resolveBuildTimeEnv(): Partial<EnvInput> {
     pickString(importEnv, 'VITE_RAG_API_KEY') ??
     pickString(nodeEnv, 'RAG_API_KEY') ??
     pickString(nodeEnv, 'VITE_RAG_API_KEY')
-  const logLevel =
+  const logLevel = normalizeLogLevel(
     pickString(importEnv, 'LOG_LEVEL') ??
-    pickString(importEnv, 'VITE_LOG_LEVEL') ??
-    pickString(nodeEnv, 'LOG_LEVEL') ??
-    pickString(nodeEnv, 'VITE_LOG_LEVEL')
+      pickString(importEnv, 'VITE_LOG_LEVEL') ??
+      pickString(nodeEnv, 'LOG_LEVEL') ??
+      pickString(nodeEnv, 'VITE_LOG_LEVEL'),
+  )
 
   return {
     TABULAR_API_KEY: tabularApiKey,
