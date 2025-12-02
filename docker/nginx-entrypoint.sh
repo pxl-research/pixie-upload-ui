@@ -4,6 +4,7 @@ set -eu
 CONFIG_PATH="${PIXIE_ENV_CONFIG_PATH:-/usr/share/nginx/html/env-config.js}"
 RUNTIME_ENV_FILE_DEFAULT="/usr/share/nginx/html/.env"
 RUNTIME_ENV_FILE="${PIXIE_ENV_FILE:-$RUNTIME_ENV_FILE_DEFAULT}"
+INJECT_KEYS="TABULAR_API_KEY RAG_API_KEY LOG_LEVEL ENABLED_BACKENDS"
 
 echo "=== Pixie Upload UI - Runtime Environment Configuration ==="
 
@@ -32,8 +33,8 @@ env | LC_ALL=C sort >"$ENV_DUMP"
 
 FOUND_VARS=0
 while IFS='=' read -r name value; do
-  case "$name" in
-    VITE_*)
+  case " $INJECT_KEYS " in
+    *" $name "*)
       escaped_value=$(printf '%s' "$value" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
       printf '    %s: "%s",\n' "$name" "$escaped_value" >>"$TMP_PATH"
       echo "  ✓ Injected: $name"
@@ -52,10 +53,10 @@ install -m 644 "$TMP_PATH" "$CONFIG_PATH"
 rm -f "$TMP_PATH"
 
 if [ "$FOUND_VARS" -eq 0 ]; then
-  echo "⚠ WARNING: No VITE_* environment variables found!"
-  echo "  The application may not work correctly without proper configuration."
+  echo "⚠ WARNING: No runtime environment variables found for Pixie Upload UI!"
+  echo "  Expected one of: $INJECT_KEYS"
 else
-  echo "✓ Generated $CONFIG_PATH with $FOUND_VARS VITE_* variables"
+  echo "✓ Generated $CONFIG_PATH with $FOUND_VARS variables"
 fi
 
 echo "=== Starting Nginx ==="

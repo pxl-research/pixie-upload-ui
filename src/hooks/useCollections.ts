@@ -11,6 +11,7 @@ import {
 import { ApiError } from '@/api/client'
 import { queryKeys } from '@/api/queryKeys'
 import type { CollectionDto, StorageTargetId } from '@/api/types'
+import { env } from '@/config/env'
 
 export function useCollectionsQuery() {
   return useQuery({
@@ -21,18 +22,38 @@ export function useCollectionsQuery() {
 }
 
 async function fetchUnifiedCollections(): Promise<CollectionDto[]> {
-  const [tabularResult, ragResult] = await Promise.allSettled([
-    fetchTabularCollections(),
-    fetchRagCollections(),
-  ])
+  const tasks: Array<Promise<CollectionDto[]>> = []
+  const markers: Array<'tabular' | 'rag'> = []
 
-  const tabular = tabularResult.status === 'fulfilled' ? tabularResult.value : []
-  const rag = ragResult.status === 'fulfilled' ? ragResult.value : []
-
-  if (ragResult.status === 'rejected') {
-    // eslint-disable-next-line no-console
-    console.warn('RAG collections fetch failed', ragResult.reason)
+  if (env.isTabularEnabled) {
+    tasks.push(fetchTabularCollections())
+    markers.push('tabular')
   }
+
+  if (env.isRagEnabled) {
+    tasks.push(fetchRagCollections())
+    markers.push('rag')
+  }
+
+  if (tasks.length === 0) return []
+
+  const results = await Promise.allSettled(tasks)
+  let tabular: CollectionDto[] = []
+  let rag: CollectionDto[] = []
+
+  results.forEach((result, index) => {
+    const marker = markers[index]
+    if (result.status === 'fulfilled') {
+      if (marker === 'tabular') tabular = result.value
+      if (marker === 'rag') rag = result.value
+    } else if (marker === 'rag') {
+      // eslint-disable-next-line no-console
+      console.warn('RAG collections fetch failed', result.reason)
+    } else if (marker === 'tabular') {
+      // eslint-disable-next-line no-console
+      console.warn('Tabular collections fetch failed', result.reason)
+    }
+  })
 
   return mergeCollections(tabular, rag)
 }
@@ -75,16 +96,37 @@ export function useCreateCollectionMutation() {
 
   return useMutation({
     mutationFn: async (input: CreateCollectionInput) => {
-      const tabular = await createCollection(input)
-      // Probeer dezelfde collectie in RAG; als het faalt, gooi een Error zodat caller kan tonen.
-      try {
-        await createRagCollection(input)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'RAG-collectie aanmaken mislukt'
-        throw new Error(`Tabular aangemaakt, RAG mislukt: ${message}`)
+      if (!env.isTabularEnabled && !env.isRagEnabled) {
+        throw new Error('Geen backends geactiveerd')
       }
 
-      return tabular
+      const results: CollectionDto[] = []
+      const errors: string[] = []
+
+      if (env.isTabularEnabled) {
+        const tabular = await createCollection(input)
+        results.push(tabular)
+      }
+
+      if (env.isRagEnabled) {
+        try {
+          const rag = await createRagCollection(input)
+          results.push(rag)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'RAG-collectie aanmaken mislukt'
+          if (env.isTabularEnabled) {
+            throw new Error(`RAG mislukt: ${message}`)
+          } else {
+            errors.push(message)
+          }
+        }
+      }
+
+      if (results.length === 0 && errors.length > 0) {
+        throw new Error(errors.join(' | '))
+      }
+
+      return results[0]
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.collections })
@@ -97,6 +139,10 @@ export function useDeleteCollectionMutation() {
 
   return useMutation({
     mutationFn: async ({ name }: { name: string }) => {
+      if (!env.isTabularEnabled && !env.isRagEnabled) {
+        throw new Error('Geen backends geactiveerd')
+      }
+
       const errors: string[] = []
       let deletedSomewhere = false
 
@@ -113,8 +159,12 @@ export function useDeleteCollectionMutation() {
         }
       }
 
-      await tryDelete(() => deleteCollection(name), 'Tabular')
-      await tryDelete(() => deleteRagCollection(name), 'RAG')
+      if (env.isTabularEnabled) {
+        await tryDelete(() => deleteCollection(name), 'Tabular')
+      }
+      if (env.isRagEnabled) {
+        await tryDelete(() => deleteRagCollection(name), 'RAG')
+      }
 
       if (!deletedSomewhere && errors.length > 0) {
         throw new Error(errors.join(' | '))

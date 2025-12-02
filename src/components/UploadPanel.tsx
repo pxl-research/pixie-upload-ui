@@ -20,8 +20,10 @@ import { z } from 'zod'
 import type { DocumentDto } from '@/api/types'
 import { useUploadDocumentMutation, type UploadDocumentVariables } from '@/hooks/useDocuments'
 import { useToast } from '@/hooks/useToast'
+import { env } from '@/config/env'
 import {
-  ACCEPTED_EXTENSIONS,
+  getAcceptedExtensions,
+  getFileRule,
   describeAcceptedFileTypes,
   getFileHandlingPlan,
   type FileHandlingPlan,
@@ -42,8 +44,6 @@ const schema = z.object({
 })
 
 type FormValues = z.infer<typeof schema>
-
-const ACCEPT_ATTRIBUTE = ACCEPTED_EXTENSIONS.join(',')
 
 interface SelectedUpload {
   file: File
@@ -77,6 +77,7 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
   const [selectedUpload, setSelectedUpload] = useState<SelectedUpload | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const mutation = useUploadDocumentMutation(collectionName)
+  const enabledTargets = env.enabledTargets
 
   const {
     register,
@@ -97,9 +98,11 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
 
   const isUploading = mutation.isPending || isSubmitting
 
+  const acceptExtensions = useMemo(() => getAcceptedExtensions(enabledTargets), [enabledTargets])
+  const acceptAttribute = useMemo(() => acceptExtensions.join(','), [acceptExtensions])
   const acceptedExtensionsDescription = useMemo(
-    () => describeAcceptedFileTypes(),
-    [],
+    () => describeAcceptedFileTypes(enabledTargets),
+    [enabledTargets],
   )
 
   const resetUploadState = () => {
@@ -109,8 +112,29 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
   }
 
   const handleFile = (file: File) => {
-    const plan = getFileHandlingPlan(file)
+    const plan = getFileHandlingPlan(file, enabledTargets)
     if (!plan) {
+      const rule = getFileRule(file)
+      if (rule) {
+        const backendDescription =
+          rule.category === 'tabular'
+            ? env.isTabularEnabled
+              ? null
+              : 'tabular backend staat uit'
+            : env.isRagEnabled
+              ? null
+              : 'rag backend staat uit'
+
+        toast({
+          title: 'Opslag niet geactiveerd',
+          description:
+            backendDescription ??
+            'Dit bestandstype kan niet worden opgeslagen met de huidige configuratie.',
+          status: 'warning',
+        })
+        return
+      }
+
       toast({
         title: 'Bestand niet ondersteund',
         description: acceptedExtensionsDescription,
@@ -288,7 +312,7 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
                 </Text>
                 <Button as="label" colorScheme="purple" cursor="pointer">
                   Kies bestand
-                  <Input type="file" display="none" accept={ACCEPT_ATTRIBUTE} onChange={handleFileChange} />
+                  <Input type="file" display="none" accept={acceptAttribute} onChange={handleFileChange} />
                 </Button>
                 {selectedUpload ? (
                   <Stack gap={1} align="center">

@@ -16,6 +16,7 @@ import {
 } from '@/api/uploads'
 import type { StorageTarget } from '@/utils/fileValidation'
 import type { DocumentUpdateInput } from '@/api/types'
+import { env } from '@/config/env'
 
 export function useDocumentsQuery(collectionName?: string) {
   const queryClient = useQueryClient()
@@ -52,18 +53,38 @@ export interface UploadDocumentVariables extends UploadDocumentInput, UploadDocu
 async function fetchUnifiedDocuments(collectionName?: string): Promise<DocumentDto[]> {
   if (!collectionName) return []
 
-  const [tabularResult, ragResult] = await Promise.allSettled([
-    fetchDocuments(collectionName),
-    fetchRagDocuments(collectionName),
-  ])
+  const tasks: Array<Promise<DocumentDto[]>> = []
+  const markers: Array<'tabular' | 'rag'> = []
 
-  const tabular = tabularResult.status === 'fulfilled' ? tabularResult.value : []
-  const rag = ragResult.status === 'fulfilled' ? ragResult.value : []
-
-  if (ragResult.status === 'rejected') {
-    // eslint-disable-next-line no-console
-    console.warn('RAG documents fetch failed', ragResult.reason)
+  if (env.isTabularEnabled) {
+    tasks.push(fetchDocuments(collectionName))
+    markers.push('tabular')
   }
+
+  if (env.isRagEnabled) {
+    tasks.push(fetchRagDocuments(collectionName))
+    markers.push('rag')
+  }
+
+  if (tasks.length === 0) return []
+
+  const results = await Promise.allSettled(tasks)
+  let tabular: DocumentDto[] = []
+  let rag: DocumentDto[] = []
+
+  results.forEach((result, index) => {
+    const marker = markers[index]
+    if (result.status === 'fulfilled') {
+      if (marker === 'tabular') tabular = result.value
+      if (marker === 'rag') rag = result.value
+    } else if (marker === 'rag') {
+      // eslint-disable-next-line no-console
+      console.warn('RAG documents fetch failed', result.reason)
+    } else if (marker === 'tabular') {
+      // eslint-disable-next-line no-console
+      console.warn('Tabular documents fetch failed', result.reason)
+    }
+  })
 
   return mergeDocuments(tabular, rag)
 }
@@ -95,7 +116,11 @@ export function useUploadDocumentMutation(collectionName?: string) {
       const { onUploadProgress, signal, targets: targetInput, ...payload } = input
       const targets = targetInput && targetInput.length > 0
         ? targetInput
-        : (['pixie-tabular-db'] as StorageTarget[])
+        : (env.enabledTargets as StorageTarget[])
+
+      if (targets.length === 0) {
+        return Promise.reject(new Error('Geen opslagdoelen geactiveerd'))
+      }
 
       return Promise.all(
         targets.map((target) =>
@@ -164,9 +189,12 @@ export function useDeleteDocumentMutation(collectionName?: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (documentId: number | string) => {
+    mutationFn: async (document: DocumentDto) => {
       if (!collectionName) {
         return Promise.reject(new Error('collectionName is required'))
+      }
+      if (!env.isTabularEnabled && !env.isRagEnabled) {
+        return Promise.reject(new Error('Geen opslagdoelen geactiveerd'))
       }
       const errors: string[] = []
       let deletedSomewhere = false
@@ -180,8 +208,12 @@ export function useDeleteDocumentMutation(collectionName?: string) {
         }
       }
 
-      await tryDelete(() => deleteDocument(collectionName, documentId))
-      await tryDelete(() => deleteRagDocument(collectionName, String(documentId)))
+      if (env.isTabularEnabled && document.storage_target !== 'pixie-rag-db') {
+        await tryDelete(() => deleteDocument(collectionName, document.id))
+      }
+      if (env.isRagEnabled && document.storage_target !== 'pixie-tabular-db') {
+        await tryDelete(() => deleteRagDocument(collectionName, String(document.file_name)))
+      }
 
       if (!deletedSomewhere && errors.length > 0) {
         throw new Error(errors.join(' | '))
@@ -209,6 +241,9 @@ export function useUpdateDocumentMutation(collectionName?: string) {
     mutationFn: ({ documentId, data }: UpdateDocumentVariables) => {
       if (!collectionName) {
         return Promise.reject(new Error('collectionName is required'))
+      }
+      if (!env.isTabularEnabled) {
+        return Promise.reject(new Error('Tabular backend staat uit'))
       }
       return updateDocument(collectionName, documentId, data)
     },

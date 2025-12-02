@@ -7,5 +7,7 @@ describe('environment sanity', () => {
     expect(env.appName).toBe(APP_NAME)
     expect(env.tabularApiBaseUrl).toBe(TABULAR_API_BASE_URL)
     expect(env.ragApiBaseUrl).toBe(RAG_API_BASE_URL)
+    expect(env.enabledBackends).toBeTypeOf('string')
+    expect(env.enabledTargets.length).toBeGreaterThan(0)
   })
 })

@@ -1,4 +1,5 @@
 export type StorageTarget = 'pixie-tabular-db' | 'pixie-rag-db'
+export const ALL_STORAGE_TARGETS: StorageTarget[] = ['pixie-tabular-db', 'pixie-rag-db']
 
 export type FileCategory = 'tabular' | 'unstructured'
 
@@ -95,45 +96,77 @@ function extractExtension(fileName: string) {
   return fileName.slice(index).toLowerCase()
 }
 
-export function getFileHandlingPlan(file: File): FileHandlingPlan | null {
+function filterTargets(targets: StorageTarget[], enabledTargets: StorageTarget[]) {
+  return targets.filter((target) => enabledTargets.includes(target))
+}
+
+function findRule(file: File) {
   const extension = extractExtension(file.name)
   const extensionRule = EXTENSION_RULE_MAP.get(extension)
   if (extensionRule) {
-    return {
-      extension,
-      label: extensionRule.label,
-      category: extensionRule.category,
-      activeTargets: extensionRule.activeTargets,
-      plannedTargets: extensionRule.plannedTargets ?? [],
-      status: extensionRule.status,
-      requiresPreprocessing: Boolean(extensionRule.requiresPreprocessing),
-    }
+    return { rule: extensionRule, extension }
   }
 
   if (file.type) {
     const mimeRule = MIME_TYPE_FALLBACK.get(file.type)
     if (mimeRule) {
-      return {
-        extension,
-        label: mimeRule.label,
-        category: mimeRule.category,
-        activeTargets: mimeRule.activeTargets,
-        plannedTargets: mimeRule.plannedTargets ?? [],
-        status: mimeRule.status,
-        requiresPreprocessing: Boolean(mimeRule.requiresPreprocessing),
-      }
+      return { rule: mimeRule, extension }
     }
   }
 
   return null
 }
 
-export function describeAcceptedFileTypes() {
-  const supported = FILE_HANDLING_RULES.filter((rule) => rule.status === 'supported')
-    .map((rule) => rule.label)
-  const inProgress = FILE_HANDLING_RULES.filter((rule) => rule.status === 'comingSoon').map(
-    (rule) => rule.label,
+export function getFileRule(file: File): { label: string; category: FileCategory } | null {
+  const match = findRule(file)
+  if (!match) return null
+  return { label: match.rule.label, category: match.rule.category }
+}
+
+export function getAcceptedExtensions(enabledTargets: StorageTarget[] = ALL_STORAGE_TARGETS) {
+  const accepted = new Set<string>()
+  FILE_HANDLING_RULES.forEach((rule) => {
+    if (filterTargets(rule.activeTargets, enabledTargets).length > 0) {
+      rule.extensions.forEach((extension) => accepted.add(extension))
+    }
+  })
+  return Array.from(accepted)
+}
+
+export function getFileHandlingPlan(
+  file: File,
+  enabledTargets: StorageTarget[] = ALL_STORAGE_TARGETS,
+): FileHandlingPlan | null {
+  const match = findRule(file)
+  if (!match) return null
+
+  const activeTargets = filterTargets(match.rule.activeTargets, enabledTargets)
+  const plannedTargets = filterTargets(match.rule.plannedTargets ?? [], enabledTargets)
+
+  if (activeTargets.length === 0) {
+    return null
+  }
+
+  return {
+    extension: match.extension,
+    label: match.rule.label,
+    category: match.rule.category,
+    activeTargets,
+    plannedTargets,
+    status: match.rule.status,
+    requiresPreprocessing: Boolean(match.rule.requiresPreprocessing),
+  }
+}
+
+export function describeAcceptedFileTypes(
+  enabledTargets: StorageTarget[] = ALL_STORAGE_TARGETS,
+) {
+  const activeRules = FILE_HANDLING_RULES.filter(
+    (rule) => filterTargets(rule.activeTargets, enabledTargets).length > 0,
   )
+
+  const supported = activeRules.filter((rule) => rule.status === 'supported').map((rule) => rule.label)
+  const inProgress = activeRules.filter((rule) => rule.status === 'comingSoon').map((rule) => rule.label)
 
   const supportedPart =
     supported.length > 0 ? `Ondersteund: ${supported.join(', ')}.` : 'Geen ondersteunde types.'

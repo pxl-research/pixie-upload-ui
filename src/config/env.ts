@@ -15,6 +15,36 @@ function normalizeLogLevel(value?: string): LogLevel | undefined {
   return LOG_LEVELS.includes(value as LogLevel) ? (value as LogLevel) : undefined
 }
 
+const ENABLED_BACKENDS = ['both', 'tabular', 'rag'] as const
+type EnabledBackends = (typeof ENABLED_BACKENDS)[number]
+
+function normalizeEnabledBackends(value?: string): EnabledBackends | undefined {
+  if (!value) return undefined
+  return ENABLED_BACKENDS.includes(value as EnabledBackends) ? (value as EnabledBackends) : undefined
+}
+
+function resolveEnabledTargets(value: EnabledBackends): {
+  enabledBackends: EnabledBackends
+  isTabularEnabled: boolean
+  isRagEnabled: boolean
+  enabledTargets: Array<'pixie-tabular-db' | 'pixie-rag-db'>
+} {
+  const enabledBackends = value ?? 'both'
+  const isTabularEnabled = enabledBackends === 'both' || enabledBackends === 'tabular'
+  const isRagEnabled = enabledBackends === 'both' || enabledBackends === 'rag'
+
+  const enabledTargets: Array<'pixie-tabular-db' | 'pixie-rag-db'> = []
+  if (isTabularEnabled) enabledTargets.push('pixie-tabular-db')
+  if (isRagEnabled) enabledTargets.push('pixie-rag-db')
+
+  return {
+    enabledBackends,
+    isTabularEnabled,
+    isRagEnabled,
+    enabledTargets,
+  }
+}
+
 const EnvSchema = z
   .object({
     TABULAR_API_KEY: z
@@ -22,6 +52,7 @@ const EnvSchema = z
       .min(1, 'TABULAR_API_KEY is required for API access'),
     RAG_API_KEY: z.string().min(1).optional(),
     LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
+    ENABLED_BACKENDS: z.enum(ENABLED_BACKENDS).default('both'),
   })
   .transform((raw) => ({
     appName: APP_NAME,
@@ -32,6 +63,7 @@ const EnvSchema = z
     ragApiProxyTarget: RAG_API_PROXY_TARGET,
     ragApiKey: raw.RAG_API_KEY,
     logLevel: raw.LOG_LEVEL,
+    ...resolveEnabledTargets(raw.ENABLED_BACKENDS),
   }))
 
 type EnvInput = z.input<typeof EnvSchema>
@@ -62,10 +94,10 @@ function resolveRuntimeEnv(): Partial<EnvInput> {
   }
 
   return {
-    TABULAR_API_KEY: pickString('TABULAR_API_KEY') ?? pickString('VITE_TABULAR_API_KEY'),
-    RAG_API_KEY: pickString('RAG_API_KEY') ?? pickString('VITE_RAG_API_KEY'),
-    LOG_LEVEL:
-      normalizeLogLevel(pickString('LOG_LEVEL') ?? pickString('VITE_LOG_LEVEL')) ?? undefined,
+    TABULAR_API_KEY: pickString('TABULAR_API_KEY'),
+    RAG_API_KEY: pickString('RAG_API_KEY'),
+    LOG_LEVEL: normalizeLogLevel(pickString('LOG_LEVEL')) ?? undefined,
+    ENABLED_BACKENDS: normalizeEnabledBackends(pickString('ENABLED_BACKENDS')),
   }
 }
 
@@ -79,26 +111,21 @@ function resolveBuildTimeEnv(): Partial<EnvInput> {
 
   const importEnv = import.meta.env as unknown as Record<string, unknown>
   const tabularApiKey =
-    pickString(importEnv, 'TABULAR_API_KEY') ??
-    pickString(importEnv, 'VITE_TABULAR_API_KEY') ??
-    pickString(nodeEnv, 'TABULAR_API_KEY') ??
-    pickString(nodeEnv, 'VITE_TABULAR_API_KEY')
+    pickString(importEnv, 'TABULAR_API_KEY') ?? pickString(nodeEnv, 'TABULAR_API_KEY')
   const ragApiKey =
-    pickString(importEnv, 'RAG_API_KEY') ??
-    pickString(importEnv, 'VITE_RAG_API_KEY') ??
-    pickString(nodeEnv, 'RAG_API_KEY') ??
-    pickString(nodeEnv, 'VITE_RAG_API_KEY')
+    pickString(importEnv, 'RAG_API_KEY') ?? pickString(nodeEnv, 'RAG_API_KEY')
   const logLevel = normalizeLogLevel(
-    pickString(importEnv, 'LOG_LEVEL') ??
-      pickString(importEnv, 'VITE_LOG_LEVEL') ??
-      pickString(nodeEnv, 'LOG_LEVEL') ??
-      pickString(nodeEnv, 'VITE_LOG_LEVEL'),
+    pickString(importEnv, 'LOG_LEVEL') ?? pickString(nodeEnv, 'LOG_LEVEL'),
+  )
+  const enabledBackends = normalizeEnabledBackends(
+    pickString(importEnv, 'ENABLED_BACKENDS') ?? pickString(nodeEnv, 'ENABLED_BACKENDS'),
   )
 
   return {
     TABULAR_API_KEY: tabularApiKey,
     RAG_API_KEY: ragApiKey,
     LOG_LEVEL: logLevel,
+    ENABLED_BACKENDS: enabledBackends,
   }
 }
 

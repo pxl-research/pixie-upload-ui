@@ -3,6 +3,18 @@ import { Outlet } from 'react-router-dom'
 import { env } from '@/config/env'
 
 export function AppLayout() {
+  const subtitleParts = [
+    env.isTabularEnabled ? 'tabular' : null,
+    env.isRagEnabled ? 'RAG' : null,
+  ].filter(Boolean)
+
+  const connections = [
+    env.isTabularEnabled ? `tabular backend: ${env.tabularApiBaseUrl}` : null,
+    env.isRagEnabled ? `rag backend: ${env.ragApiBaseUrl}` : null,
+  ]
+    .filter(Boolean)
+    .join(' • ')
+
   return (
     <Flex direction="column" minH="100vh" bg="gray.50">
       <Box as="header" borderBottomWidth="1px" bg="white">
@@ -12,7 +24,7 @@ export function AppLayout() {
               {env.appName}
             </Heading>
             <Text fontSize="sm" color="gray.500">
-              Upload documenten (tabular & RAG) en beheer collecties binnen Pixie.
+              Upload documenten ({subtitleParts.join(' & ') || 'geen backends actief'}) en beheer collecties binnen Pixie.
             </Text>
           </Box>
         </Container>
@@ -25,8 +37,7 @@ export function AppLayout() {
       <Box as="footer" borderTopWidth="1px" bg="white">
         <Container maxW="6xl" py={4}>
           <Text fontSize="xs" color="gray.500">
-            Verbonden met tabular backend: {env.tabularApiBaseUrl}
-            {env.ragApiBaseUrl ? ` • rag backend: ${env.ragApiBaseUrl}` : ''}
+            {connections || 'Geen backends geactiveerd.'}
           </Text>
         </Container>
       </Box>

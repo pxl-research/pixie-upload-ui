@@ -27,7 +27,7 @@ export default defineConfig(() => {
 
   return {
     plugins: [react()],
-    envPrefix: ['VITE_', 'TABULAR_', 'RAG_', 'LOG_'],
+    envPrefix: ['TABULAR_', 'RAG_', 'LOG_', 'ENABLED_'],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'),

@@ -65,7 +65,7 @@ export function CollectionDashboard() {
 
   const deletingDocumentId = useMemo(() => {
     if (!deleteDocumentMutation.isPending) return undefined
-    return deleteDocumentMutation.variables ?? undefined
+    return deleteDocumentMutation.variables?.id ?? undefined
   }, [deleteDocumentMutation.isPending, deleteDocumentMutation.variables])
 
   const handleCollectionCreated = (collectionName: string) => {
@@ -101,7 +101,7 @@ export function CollectionDashboard() {
   const handleDocumentDeleteConfirm = async () => {
     if (!pendingDeleteDocument) return
     try {
-      await deleteDocumentMutation.mutateAsync(pendingDeleteDocument.id)
+      await deleteDocumentMutation.mutateAsync(pendingDeleteDocument)
       toast({
         title: 'Document verwijderd',
         description: `${pendingDeleteDocument.file_name} is verwijderd`,
