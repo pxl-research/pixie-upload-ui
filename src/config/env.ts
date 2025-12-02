@@ -2,9 +2,7 @@ import { z } from 'zod'
 import {
   APP_NAME,
   RAG_API_BASE_URL,
-  RAG_API_PROXY_TARGET,
   TABULAR_API_BASE_URL,
-  TABULAR_API_PROXY_TARGET,
 } from './constants'
 
 const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'silent'] as const
@@ -59,10 +57,8 @@ const EnvSchema = z
   .transform((raw) => ({
     appName: APP_NAME,
     tabularApiBaseUrl: raw.TABULAR_API_BASE_URL,
-    tabularApiProxyTarget: TABULAR_API_PROXY_TARGET,
     tabularApiKey: raw.TABULAR_API_KEY,
     ragApiBaseUrl: raw.RAG_API_BASE_URL,
-    ragApiProxyTarget: RAG_API_PROXY_TARGET,
     ragApiKey: raw.RAG_API_KEY,
     logLevel: raw.LOG_LEVEL,
     ...resolveEnabledTargets(raw.ENABLED_BACKENDS),

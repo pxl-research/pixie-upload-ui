@@ -8,24 +8,6 @@ DEFAULT_NGINX_CONF="/etc/nginx/conf.d/default.conf"
 INJECT_KEYS="TABULAR_API_KEY RAG_API_KEY LOG_LEVEL ENABLED_BACKENDS"
 
 ENABLED_BACKENDS="${ENABLED_BACKENDS:-both}"
-TABULAR_ENABLED=0
-RAG_ENABLED=0
-
-case "$ENABLED_BACKENDS" in
-  both|"")
-    TABULAR_ENABLED=1
-    RAG_ENABLED=1
-    ;;
-  tabular)
-    TABULAR_ENABLED=1
-    ;;
-  rag)
-    RAG_ENABLED=1
-    ;;
-esac
-
-TABULAR_PROXY_TARGET="${TABULAR_PROXY_TARGET:-http://tabular-api:8000/}"
-RAG_PROXY_TARGET="${RAG_PROXY_TARGET:-http://rag-api:8000/}"
 
 echo "=== Pixie Upload UI - Runtime Environment Configuration ==="
 
@@ -82,7 +64,7 @@ fi
 
 # Generate nginx config (static file serving only; no API proxying)
 NGINX_TMP="$(mktemp)"
-cat >"$NGINX_TMP" <<EOF
+cat >"$NGINX_TMP" <<'EOF'
 server {
     listen 80;
     server_name _;
@@ -99,9 +81,8 @@ server {
         add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
         add_header Pragma "no-cache";
         add_header Expires "0";
-        try_files \$uri =404;
+        try_files $uri =404;
     }
-EOF
 
     # SPA fallback - serve index.html for all non-file requests
     location / {
