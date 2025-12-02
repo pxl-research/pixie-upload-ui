@@ -27,6 +27,16 @@ esac
 TABULAR_PROXY_TARGET="${TABULAR_PROXY_TARGET:-http://pixie_tabular_api:8000/}"
 RAG_PROXY_TARGET="${RAG_PROXY_TARGET:-http://pixie_rag_api:8000/}"
 
+# Ensure proxy targets end with a slash so path rewriting strips the prefix correctly
+case "$TABULAR_PROXY_TARGET" in
+  */) ;;
+  *) TABULAR_PROXY_TARGET="${TABULAR_PROXY_TARGET}/" ;;
+esac
+case "$RAG_PROXY_TARGET" in
+  */) ;;
+  *) RAG_PROXY_TARGET="${RAG_PROXY_TARGET}/" ;;
+esac
+
 echo "=== Pixie Upload UI - Runtime Environment Configuration ==="
 
 # Load runtime .env if present
@@ -111,6 +121,7 @@ if [ "$TABULAR_ENABLED" -eq 1 ]; then
     # Proxy tabular API
     location /tabular/ {
         set \$tabular_upstream "$TABULAR_PROXY_TARGET";
+        rewrite ^/tabular/(.*)$ /\$1 break;
         proxy_pass \$tabular_upstream;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
@@ -127,6 +138,7 @@ if [ "$RAG_ENABLED" -eq 1 ]; then
     # Proxy RAG API
     location /rag/ {
         set \$rag_upstream "$RAG_PROXY_TARGET";
+        rewrite ^/rag/(.*)$ /\$1 break;
         proxy_pass \$rag_upstream;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
