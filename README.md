@@ -24,19 +24,17 @@ De PiXie Upload UI is een eenvoudige webapp waarin medewerkers documenten verzam
 - Klaar voor groei: nieuwe collecties of extra documenten voeg je in minuten toe, zodat PiXie altijd op de hoogte blijft.
 
 ## Configuratie (tabular backend)
-- `VITE_TABULAR_API_BASE_URL`: basis-URL van de tabular backend (default: `http://localhost:8000`).
-- `VITE_TABULAR_API_PROXY_TARGET`: target voor Vite-proxy wanneer je `/api` gebruikt tijdens lokaal draaien.
-- `VITE_TABULAR_API_KEY`: API key die als `X-API-Key` wordt meegestuurd.
-- `VITE_LOG_LEVEL`: logniveau (bijv. `info`).
+- Basis-URL en proxy voor tabular zijn intern gefixeerd op `/tabular` met target `http://pixie_tabular_api:8000`.
+- `TABULAR_API_KEY`: API key die als `X-API-Key` wordt meegestuurd.
+- `LOG_LEVEL`: logniveau (bijv. `info`).
 
 ## Configuratie (rag backend)
-- `VITE_RAG_API_BASE_URL`: basis-URL van de rag backend (bijv. `http://localhost:8010`).
-- `VITE_RAG_API_PROXY_TARGET`: target voor Vite-proxy voor de rag backend (alleen nodig als je een relatieve base URL gebruikt tijdens dev).
-- `VITE_RAG_API_KEY`: API key voor de rag backend.
+- Basis-URL en proxy voor rag zijn intern gefixeerd op `/rag` met target `http://pixie_rag_api:8000`.
+- `RAG_API_KEY`: API key voor de rag backend.
 
 ## Authenticatie
 - Aanbevolen: zet Basic Auth op de reverse proxy/ingress zodat de UI alleen bereikbaar is na server-side login. De front-end zelf bevat geen ingebouwde login meer.
-- API-calls gebruiken enkel de API keys uit de configuratie (`VITE_TABULAR_API_KEY`, `VITE_RAG_API_KEY`).
+- API-calls gebruiken enkel de API keys uit de configuratie (`TABULAR_API_KEY`, `RAG_API_KEY`).
 
 ### Voorbeeld: Nginx (single host)
 1) Maak htpasswd: `htpasswd -c .htpasswd admin`

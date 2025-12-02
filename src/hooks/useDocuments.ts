@@ -17,10 +17,24 @@ import type { StorageTarget } from '@/utils/fileValidation'
 import type { DocumentUpdateInput } from '@/api/types'
 
 export function useDocumentsQuery(collectionName?: string) {
+  const queryClient = useQueryClient()
+
   return useQuery({
     queryKey: collectionName ? queryKeys.documents(collectionName) : ['documents'],
     queryFn: () => fetchUnifiedDocuments(collectionName),
     enabled: Boolean(collectionName),
+    onSuccess: (documents) => {
+      if (!collectionName) return
+      queryClient.setQueryData<CollectionDto[]>(
+        queryKeys.collections,
+        (previousCollections) =>
+          previousCollections?.map((collection) =>
+            collection.name === collectionName
+              ? { ...collection, document_count: documents.length }
+              : collection,
+          ) ?? previousCollections,
+      )
+    },
   })
 }
 
@@ -51,7 +65,7 @@ function mergeDocuments(tabular: DocumentDto[], rag: DocumentDto[]): DocumentDto
   const map = new Map<string, DocumentDto>()
 
   const add = (doc: DocumentDto) => {
-    const key = doc.file_name || String(doc.id)
+    const key = doc.id != null ? String(doc.id) : doc.file_name || crypto.randomUUID()
     if (!map.has(key)) {
       map.set(key, doc)
     }

@@ -1,32 +1,31 @@
 import { z } from 'zod'
+import {
+  APP_NAME,
+  RAG_API_BASE_URL,
+  RAG_API_PROXY_TARGET,
+  TABULAR_API_BASE_URL,
+  TABULAR_API_PROXY_TARGET,
+} from './constants'
 
 const EnvSchema = z
   .object({
-    VITE_APP_NAME: z.string().min(1).default('Pixie Upload UI'),
-    VITE_TABULAR_API_BASE_URL: z
+    TABULAR_API_KEY: z
       .string()
-      .min(1, 'VITE_TABULAR_API_BASE_URL is required for API access')
-      .default('http://localhost:8000'),
-    VITE_TABULAR_API_PROXY_TARGET: z.string().min(1).optional(),
-    VITE_TABULAR_API_KEY: z
-      .string()
-      .min(1, 'VITE_TABULAR_API_KEY is required for API access'),
-    VITE_RAG_API_BASE_URL: z.string().min(1).optional(),
-    VITE_RAG_API_PROXY_TARGET: z.string().min(1).optional(),
-    VITE_RAG_API_KEY: z.string().min(1).optional(),
-    VITE_LOG_LEVEL: z
+      .min(1, 'TABULAR_API_KEY is required for API access'),
+    RAG_API_KEY: z.string().min(1).optional(),
+    LOG_LEVEL: z
       .enum(['trace', 'debug', 'info', 'warn', 'error', 'silent'])
       .default('info'),
   })
   .transform((raw) => ({
-    appName: raw.VITE_APP_NAME || 'Pixie Upload UI',
-    tabularApiBaseUrl: raw.VITE_TABULAR_API_BASE_URL,
-    tabularApiProxyTarget: raw.VITE_TABULAR_API_PROXY_TARGET,
-    tabularApiKey: raw.VITE_TABULAR_API_KEY,
-    ragApiBaseUrl: raw.VITE_RAG_API_BASE_URL,
-    ragApiProxyTarget: raw.VITE_RAG_API_PROXY_TARGET,
-    ragApiKey: raw.VITE_RAG_API_KEY,
-    logLevel: raw.VITE_LOG_LEVEL,
+    appName: APP_NAME,
+    tabularApiBaseUrl: TABULAR_API_BASE_URL,
+    tabularApiProxyTarget: TABULAR_API_PROXY_TARGET,
+    tabularApiKey: raw.TABULAR_API_KEY,
+    ragApiBaseUrl: RAG_API_BASE_URL,
+    ragApiProxyTarget: RAG_API_PROXY_TARGET,
+    ragApiKey: raw.RAG_API_KEY,
+    logLevel: raw.LOG_LEVEL,
   }))
 
 type EnvInput = z.input<typeof EnvSchema>
@@ -51,19 +50,47 @@ function resolveRuntimeEnv(): Partial<EnvInput> {
     return {}
   }
 
-  return runtimeEnv
+  const pickString = (key: string) => {
+    const value = (runtimeEnv as Record<string, unknown>)[key]
+    return typeof value === 'string' ? value : undefined
+  }
+
+  return {
+    TABULAR_API_KEY: pickString('TABULAR_API_KEY') ?? pickString('VITE_TABULAR_API_KEY'),
+    RAG_API_KEY: pickString('RAG_API_KEY') ?? pickString('VITE_RAG_API_KEY'),
+    LOG_LEVEL: pickString('LOG_LEVEL') ?? pickString('VITE_LOG_LEVEL'),
+  }
 }
 
 function resolveBuildTimeEnv(): Partial<EnvInput> {
+  const nodeEnv = typeof process !== 'undefined' ? process.env : undefined
+
+  const pickString = (source: Record<string, unknown> | undefined, key: string) => {
+    const value = source?.[key]
+    return typeof value === 'string' ? value : undefined
+  }
+
+  const importEnv = import.meta.env as unknown as Record<string, unknown>
+  const tabularApiKey =
+    pickString(importEnv, 'TABULAR_API_KEY') ??
+    pickString(importEnv, 'VITE_TABULAR_API_KEY') ??
+    pickString(nodeEnv, 'TABULAR_API_KEY') ??
+    pickString(nodeEnv, 'VITE_TABULAR_API_KEY')
+  const ragApiKey =
+    pickString(importEnv, 'RAG_API_KEY') ??
+    pickString(importEnv, 'VITE_RAG_API_KEY') ??
+    pickString(nodeEnv, 'RAG_API_KEY') ??
+    pickString(nodeEnv, 'VITE_RAG_API_KEY')
+  const logLevel =
+    pickString(importEnv, 'LOG_LEVEL') ??
+    pickString(importEnv, 'VITE_LOG_LEVEL') ??
+    pickString(nodeEnv, 'LOG_LEVEL') ??
+    pickString(nodeEnv, 'VITE_LOG_LEVEL')
+
   return {
-    VITE_APP_NAME: import.meta.env.VITE_APP_NAME,
-    VITE_TABULAR_API_BASE_URL: import.meta.env.VITE_TABULAR_API_BASE_URL,
-    VITE_TABULAR_API_PROXY_TARGET: import.meta.env.VITE_TABULAR_API_PROXY_TARGET,
-    VITE_TABULAR_API_KEY: import.meta.env.VITE_TABULAR_API_KEY,
-    VITE_RAG_API_BASE_URL: import.meta.env.VITE_RAG_API_BASE_URL,
-    VITE_RAG_API_PROXY_TARGET: import.meta.env.VITE_RAG_API_PROXY_TARGET,
-    VITE_RAG_API_KEY: import.meta.env.VITE_RAG_API_KEY,
-    VITE_LOG_LEVEL: import.meta.env.VITE_LOG_LEVEL,
+    TABULAR_API_KEY: tabularApiKey,
+    RAG_API_KEY: ragApiKey,
+    LOG_LEVEL: logLevel,
   }
 }
 
