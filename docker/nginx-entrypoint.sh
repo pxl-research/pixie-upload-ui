@@ -24,8 +24,8 @@ case "$ENABLED_BACKENDS" in
     ;;
 esac
 
-TABULAR_PROXY_TARGET="${TABULAR_PROXY_TARGET:-http://pixie_tabular_api:8000/}"
-RAG_PROXY_TARGET="${RAG_PROXY_TARGET:-http://pixie_rag_api:8000/}"
+TABULAR_PROXY_TARGET="${TABULAR_PROXY_TARGET:-http://tabular-api:8000/}"
+RAG_PROXY_TARGET="${RAG_PROXY_TARGET:-http://rag-api:8000/}"
 
 # Ensure proxy targets end with a slash so path rewriting strips the prefix correctly
 case "$TABULAR_PROXY_TARGET" in
