@@ -1,9 +1,5 @@
 import { z } from 'zod'
-import {
-  APP_NAME,
-  RAG_API_BASE_URL,
-  TABULAR_API_BASE_URL,
-} from './constants'
+import { APP_NAME, RAG_API_BASE_URL, TABULAR_API_BASE_URL } from './constants'
 
 const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'silent'] as const
 type LogLevel = (typeof LOG_LEVELS)[number]
