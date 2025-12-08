@@ -159,8 +159,6 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
       return
     }
 
-    const plannedTargetsText =
-      plan.plannedTargets.length > 0 ? formatStorageTargetsSentence(plan.plannedTargets) : null
     const activeTargetsText =
       plan.activeTargets.length > 0 ? formatStorageTargetsSentence(plan.activeTargets) : null
 
@@ -312,7 +310,7 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
             <Box
               borderWidth="2px"
               borderStyle="dashed"
-              borderColor={selectedUpload ? 'green.300' : 'purple.200'}
+              borderColor={selectedUploads.length > 0 ? 'green.300' : 'purple.200'}
               borderRadius="lg"
               p={6}
               textAlign="center"
