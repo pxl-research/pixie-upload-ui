@@ -83,6 +83,13 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # Increase limits/timeouts for large uploads and long-running upstream work
+    client_max_body_size 200m;
+    proxy_connect_timeout 300s;
+    proxy_send_timeout 300s;
+    proxy_read_timeout 300s;
+    send_timeout 300s;
+
     resolver 127.0.0.11 ipv6=off;
 
     # Security headers
