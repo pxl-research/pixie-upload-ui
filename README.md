@@ -32,6 +32,7 @@ De PiXie Upload UI is een eenvoudige webapp waarin medewerkers documenten verzam
 ## Configuratie (rag backend)
 - Basis-URL rag: `RAG_API_BASE_URL` (default `/rag` via proxy naar `rag-api:8000`).
 - `RAG_API_KEY`: API key voor de rag backend.
+- Uploads zijn asynchroon: `POST /documents/upload` moet een `job_id` teruggeven en `GET /jobs/{job_id}` moet de jobstatus leveren. De UI pollt deze endpoint automatisch om klaar/mislukt te detecteren.
 
 ## Authenticatie
 - Aanbevolen: zet Basic Auth op de reverse proxy/ingress zodat de UI alleen bereikbaar is na server-side login. De front-end zelf bevat geen ingebouwde login meer.

@@ -29,6 +29,7 @@ import {
   type FileHandlingPlan,
   type StorageTarget,
 } from '@/utils/fileValidation'
+import { useRagJobWatcher } from '@/hooks/useRagJobWatcher'
 
 interface UploadPanelProps {
   collectionName?: string
@@ -78,6 +79,7 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
   const abortControllerRef = useRef<AbortController | null>(null)
   const mutation = useUploadDocumentMutation(collectionName)
   const enabledTargets = env.enabledTargets
+  const { watchJobs } = useRagJobWatcher(collectionName)
 
   const {
     register,
@@ -234,6 +236,15 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
         description: `${selectedUpload.file.name} wordt verwerkt`,
         status: 'success',
       })
+      if (result.ragJobs.length > 0) {
+        const firstJob = result.ragJobs[0]
+        toast({
+          title: 'RAG ingest draait asynchroon',
+          description: `Job ${firstJob.id} volgt; we melden het als die klaar is.`,
+          status: 'info',
+        })
+        watchJobs(result.ragJobs, { fileName: selectedUpload.file.name })
+      }
       if (selectedUpload.plan.plannedTargets.length > 0) {
         const plannedText = formatStorageTargetsSentence(selectedUpload.plan.plannedTargets)
         const activeText =
@@ -248,7 +259,7 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
           status: 'info',
         })
       }
-      onUploadCompleted?.(result)
+      onUploadCompleted?.(result.documents)
       resetUploadState()
     } catch (error) {
       if (error instanceof Error && (error.name === 'CanceledError' || error.message === 'canceled')) {

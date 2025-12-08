@@ -8,4 +8,5 @@ export const routes = {
     `/collections/${encodeURIComponent(collectionName)}/documents/${encodeURIComponent(String(documentId))}`,
   productQuery: (collectionName: string, productName: string) =>
     `/collections/${encodeURIComponent(collectionName)}/products/${encodeURIComponent(productName)}/query`,
+  ragJob: (jobId: string) => `/jobs/${encodeURIComponent(jobId)}`,
 } as const

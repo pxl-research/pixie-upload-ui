@@ -4,6 +4,8 @@ import { request } from '@/api/client'
 import { routes } from '@/api/routes'
 import { UploadResponseSchema } from '@/api/types'
 import type { StorageTarget } from '@/utils/fileValidation'
+import { RagJobResponseSchema, normalizeRagJob, type RagJobSnapshot } from '@/api/ragJobs'
+import { z } from 'zod'
 
 export interface UploadDocumentInput extends UploadMetadata {
   file: File
@@ -15,12 +17,24 @@ export interface UploadDocumentOptions {
   signal?: AbortSignal
 }
 
+export type UploadTargetResult =
+  | {
+      target: 'pixie-tabular-db'
+      documents: DocumentDto[]
+      ragJob?: undefined
+    }
+  | {
+      target: 'pixie-rag-db'
+      documents: DocumentDto[]
+      ragJob?: RagJobSnapshot
+    }
+
 export async function uploadDocumentToTarget(
   target: StorageTarget,
   collectionName: string,
   payload: UploadDocumentInput,
   options?: UploadDocumentOptions,
-) {
+): Promise<UploadTargetResult> {
   if (target === 'pixie-rag-db') {
     return uploadToRag(collectionName, payload, options)
   }
@@ -32,7 +46,7 @@ async function uploadToTabular(
   collectionName: string,
   payload: UploadDocumentInput,
   options?: UploadDocumentOptions,
-) {
+): Promise<UploadTargetResult> {
   const body = new FormData()
   body.append('file', payload.file)
 
@@ -68,7 +82,7 @@ async function uploadToRag(
   collectionName: string,
   payload: UploadDocumentInput,
   options?: UploadDocumentOptions,
-) {
+): Promise<UploadTargetResult> {
   const body = new FormData()
   body.append('file', payload.file)
   if (collectionName) {
@@ -78,18 +92,29 @@ async function uploadToRag(
     body.append('document_id', payload.document_id)
   }
 
-  await request<unknown>({
+  const response = await request<unknown>({
     url: '/documents/upload',
     method: 'POST',
     data: body,
     onUploadProgress: options?.onUploadProgress,
     signal: options?.signal,
-    timeout: 120_000,
+    timeout: 30_000,
     target: 'rag',
   })
+
+  const ack = RagJobResponseSchema.catchall(z.unknown()).safeParse(response)
+  if (!ack.success) {
+    throw new Error('RAG API gaf een ongeldig antwoord op upload')
+  }
+
+  const job = normalizeRagJob(ack.data)
+  if (!job.id) {
+    throw new Error('RAG API gaf geen job_id terug voor async upload')
+  }
 
   return {
     target: 'pixie-rag-db' as const,
     documents: [], // RAG API returns ack, not documents list
+    ragJob: job,
   }
 }

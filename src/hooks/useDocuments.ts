@@ -13,10 +13,12 @@ import {
   uploadDocumentToTarget,
   type UploadDocumentInput,
   type UploadDocumentOptions,
+  type UploadTargetResult,
 } from '@/api/uploads'
 import type { StorageTarget } from '@/utils/fileValidation'
 import type { DocumentUpdateInput } from '@/api/types'
 import { env } from '@/config/env'
+import type { RagJobSnapshot } from '@/api/ragJobs'
 
 export function useDocumentsQuery(collectionName?: string) {
   const queryClient = useQueryClient()
@@ -48,6 +50,11 @@ export function useDocumentsQuery(collectionName?: string) {
 
 export interface UploadDocumentVariables extends UploadDocumentInput, UploadDocumentOptions {
   targets?: StorageTarget[]
+}
+
+export interface UploadMutationResult {
+  documents: DocumentDto[]
+  ragJobs: RagJobSnapshot[]
 }
 
 async function fetchUnifiedDocuments(collectionName?: string): Promise<DocumentDto[]> {
@@ -108,7 +115,7 @@ function mergeDocuments(tabular: DocumentDto[], rag: DocumentDto[]): DocumentDto
 export function useUploadDocumentMutation(collectionName?: string) {
   const queryClient = useQueryClient()
 
-  return useMutation({
+  return useMutation<UploadMutationResult, unknown, UploadDocumentVariables>({
     mutationFn: (input: UploadDocumentVariables) => {
       if (!collectionName) {
         return Promise.reject(new Error('collectionName is required'))
@@ -129,12 +136,19 @@ export function useUploadDocumentMutation(collectionName?: string) {
             signal,
           }),
         ),
-      ).then((results) => {
+      ).then((results: UploadTargetResult[]) => {
         const tabularResult = results.find((result) => result.target === 'pixie-tabular-db')
-        return tabularResult?.documents ?? results[0]?.documents ?? []
+        const ragJobs = results
+          .map((result) => (result.target === 'pixie-rag-db' ? result.ragJob : undefined))
+          .filter(Boolean) as RagJobSnapshot[]
+
+        return {
+          documents: tabularResult?.documents ?? results[0]?.documents ?? [],
+          ragJobs,
+        }
       })
     },
-    onSuccess: async (documents) => {
+    onSuccess: async ({ documents }) => {
       if (!collectionName) return
 
       let addedCount = 0
