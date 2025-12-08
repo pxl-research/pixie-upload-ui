@@ -61,6 +61,12 @@ async function uploadToTabular(
   if (payload.description) {
     body.append('description', payload.description)
   }
+  if (payload.ocr_enabled !== undefined) {
+    body.append('ocr_enabled', String(payload.ocr_enabled))
+  }
+  if (payload.ocr_lang) {
+    body.append('ocr_lang', payload.ocr_lang)
+  }
 
   const data = await request<DocumentDto[]>({
     url: routes.collectionDocuments(collectionName),
@@ -90,6 +96,12 @@ async function uploadToRag(
   }
   if (payload.document_id) {
     body.append('document_id', payload.document_id)
+  }
+  if (payload.ocr_enabled !== undefined) {
+    body.append('ocr_enabled', String(payload.ocr_enabled))
+  }
+  if (payload.ocr_lang) {
+    body.append('ocr_lang', payload.ocr_lang)
   }
 
   const response = await request<unknown>({

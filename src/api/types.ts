@@ -72,6 +72,8 @@ export const UploadMetadataSchema = z.object({
   product_prefix: z.string().nullable().optional(),
   language: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
+  ocr_enabled: z.boolean().optional(),
+  ocr_lang: z.string().nullable().optional(),
 })
 
 export type UploadMetadata = z.infer<typeof UploadMetadataSchema>
