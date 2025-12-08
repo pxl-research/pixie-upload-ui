@@ -30,6 +30,7 @@ import {
   type StorageTarget,
 } from '@/utils/fileValidation'
 import { useRagJobWatcher } from '@/hooks/useRagJobWatcher'
+import type { RagJobSnapshot } from '@/api/ragJobs'
 
 interface UploadPanelProps {
   collectionName?: string
@@ -47,6 +48,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 interface SelectedUpload {
+  id: string
   file: File
   plan: FileHandlingPlan
 }
@@ -75,7 +77,7 @@ function formatStorageTargetsInline(targets: StorageTarget[], delimiter = ' + ')
 
 export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelProps) {
   const toast = useToast()
-  const [selectedUpload, setSelectedUpload] = useState<SelectedUpload | null>(null)
+  const [selectedUploads, setSelectedUploads] = useState<SelectedUpload[]>([])
   const abortControllerRef = useRef<AbortController | null>(null)
   const mutation = useUploadDocumentMutation(collectionName)
   const enabledTargets = env.enabledTargets
@@ -94,7 +96,7 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
   useEffect(() => {
     if (!collectionName) {
       reset()
-      setSelectedUpload(null)
+      setSelectedUploads([])
     }
   }, [collectionName, reset])
 
@@ -108,12 +110,12 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
   )
 
   const resetUploadState = () => {
-    setSelectedUpload(null)
+    setSelectedUploads([])
     abortControllerRef.current = null
     reset({ language: '' })
   }
 
-  const handleFile = (file: File) => {
+  const addFile = (file: File) => {
     const plan = getFileHandlingPlan(file, enabledTargets)
     if (!plan) {
       const rule = getFileRule(file)
@@ -145,22 +147,26 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
       return
     }
 
+    if (plan.status === 'comingSoon') {
+      const plannedText = formatStorageTargetsSentence(plan.plannedTargets)
+      toast({
+        title: `${plan.label} opslag is in ontwikkeling`,
+        description: plannedText
+          ? `We zorgen ervoor dat deze bestanden binnenkort automatisch naar ${plannedText} worden verwerkt.`
+          : 'We zorgen ervoor dat deze bestanden binnenkort automatisch verwerkt worden.',
+        status: 'info',
+      })
+      return
+    }
+
     const plannedTargetsText =
       plan.plannedTargets.length > 0 ? formatStorageTargetsSentence(plan.plannedTargets) : null
     const activeTargetsText =
       plan.activeTargets.length > 0 ? formatStorageTargetsSentence(plan.activeTargets) : null
 
-    setSelectedUpload({ file, plan })
+    setSelectedUploads((previous) => [...previous, { id: crypto.randomUUID(), file, plan }])
 
-    if (plan.status === 'comingSoon') {
-      toast({
-        title: `${plan.label} opslag is in ontwikkeling`,
-        description: plannedTargetsText
-          ? `We zorgen ervoor dat deze bestanden binnenkort automatisch naar ${plannedTargetsText} worden verwerkt.`
-          : 'We zorgen ervoor dat deze bestanden binnenkort automatisch verwerkt worden.',
-        status: 'info',
-      })
-    } else if (plan.plannedTargets.length > 0) {
+    if (plan.plannedTargets.length > 0) {
       const plannedText = formatStorageTargetsSentence(plan.plannedTargets)
       toast({
         title: 'Extra opslag gepland',
@@ -173,17 +179,16 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
   }
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      handleFile(file)
+    const files = event.target.files
+    if (files?.length) {
+      Array.from(files).forEach(addFile)
     }
   }
 
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     if (!event.dataTransfer.files?.length) return
-    const file = event.dataTransfer.files[0]
-    handleFile(file)
+    Array.from(event.dataTransfer.files).forEach(addFile)
   }
 
   const onSubmit = handleSubmit(async (values) => {
@@ -195,7 +200,7 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
       return
     }
 
-    if (!selectedUpload) {
+    if (selectedUploads.length === 0) {
       toast({
         title: 'Geen bestand gekozen',
         description: acceptedExtensionsDescription,
@@ -204,62 +209,64 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
       return
     }
 
-    if (selectedUpload.plan.status === 'comingSoon') {
-      const plannedText = formatStorageTargetsSentence(selectedUpload.plan.plannedTargets)
-      toast({
-        title: 'Opslag nog niet beschikbaar',
-        description: plannedText
-          ? `Bestanden van het type ${selectedUpload.plan.label} worden binnenkort opgeslagen in ${plannedText}.`
-          : `Bestanden van het type ${selectedUpload.plan.label} worden binnenkort ondersteund.`,
-        status: 'info',
-      })
-      return
-    }
-
     const controller = new AbortController()
     abortControllerRef.current = controller
 
-    const payload: UploadDocumentVariables = {
-      file: selectedUpload.file,
-      language: values.language,
-      signal: controller.signal,
-      targets:
-        selectedUpload.plan.activeTargets.length > 0
-          ? selectedUpload.plan.activeTargets
-          : (['pixie-tabular-db'] as StorageTarget[]),
-    }
+    const documentsAdded: DocumentDto[] = []
+    const ragJobs: Array<{ jobs: RagJobSnapshot[]; fileName: string }> = []
 
     try {
-      const result = await mutation.mutateAsync(payload)
       toast({
         title: 'Upload gestart',
-        description: `${selectedUpload.file.name} wordt verwerkt`,
+        description: `${selectedUploads.length} bestand(en) worden verwerkt`,
         status: 'success',
       })
-      if (result.ragJobs.length > 0) {
-        const firstJob = result.ragJobs[0]
+
+      for (const upload of selectedUploads) {
+        const payload: UploadDocumentVariables = {
+          file: upload.file,
+          language: values.language,
+          signal: controller.signal,
+          targets:
+            upload.plan.activeTargets.length > 0
+              ? upload.plan.activeTargets
+              : (['pixie-tabular-db'] as StorageTarget[]),
+        }
+
+        try {
+          const result = await mutation.mutateAsync(payload)
+          documentsAdded.push(...result.documents)
+          if (result.ragJobs.length > 0) {
+            ragJobs.push({ jobs: result.ragJobs, fileName: upload.file.name })
+          }
+        } catch (error) {
+          if (error instanceof Error && (error.name === 'CanceledError' || error.message === 'canceled')) {
+            throw error
+          }
+          const description =
+            error instanceof Error ? error.message : 'Upload mislukt, probeer het opnieuw.'
+          toast({
+            title: 'Upload mislukt',
+            description: `${upload.file.name}: ${description}`,
+            status: 'error',
+          })
+        }
+      }
+
+      if (ragJobs.length > 0) {
+        const label =
+          ragJobs.length === 1 ? ragJobs[0]?.fileName : `${ragJobs.length} RAG-bestanden`
         toast({
           title: 'RAG ingest draait asynchroon',
-          description: `Job ${firstJob.id} volgt; we melden het als die klaar is.`,
+          description: `${label} volgen via job polling; we melden het als dit klaar is.`,
           status: 'info',
         })
-        watchJobs(result.ragJobs, { fileName: selectedUpload.file.name })
+        ragJobs.forEach(({ jobs, fileName }) => watchJobs(jobs, { fileName }))
       }
-      if (selectedUpload.plan.plannedTargets.length > 0) {
-        const plannedText = formatStorageTargetsSentence(selectedUpload.plan.plannedTargets)
-        const activeText =
-          selectedUpload.plan.activeTargets.length > 0
-            ? formatStorageTargetsSentence(selectedUpload.plan.activeTargets)
-            : 'de primaire opslag'
-        toast({
-          title: 'Tweede opslag volgt',
-          description: plannedText
-            ? `De verwerking richting ${plannedText} wordt binnenkort toegevoegd. Voor nu staat alleen ${activeText} aan.`
-            : 'Extra opslag wordt binnenkort toegevoegd. Voor nu staat slechts één doellocatie aan.',
-          status: 'info',
-        })
+
+      if (documentsAdded.length > 0) {
+        onUploadCompleted?.(documentsAdded)
       }
-      onUploadCompleted?.(result.documents)
       resetUploadState()
     } catch (error) {
       if (error instanceof Error && (error.name === 'CanceledError' || error.message === 'canceled')) {
@@ -311,7 +318,7 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
               textAlign="center"
               onDragOver={(event) => event.preventDefault()}
               onDrop={handleDrop}
-              bg={selectedUpload ? 'green.50' : undefined}
+              bg={selectedUploads.length > 0 ? 'green.50' : undefined}
             >
               <Stack gap={3} align="center">
                 <Icon as={LuUpload} boxSize={8} color="purple.500" />
@@ -323,29 +330,33 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
                 </Text>
                 <Button as="label" colorScheme="purple" cursor="pointer">
                   Kies bestand
-                  <Input type="file" display="none" accept={acceptAttribute} onChange={handleFileChange} />
+                  <Input
+                    type="file"
+                    display="none"
+                    multiple
+                    accept={acceptAttribute}
+                    onChange={handleFileChange}
+                  />
                 </Button>
-                {selectedUpload ? (
-                  <Stack gap={1} align="center">
+                {selectedUploads.length > 0 ? (
+                  <Stack gap={2} align="center" w="100%">
                     <Text fontSize="sm" color="green.600">
-                      Geselecteerd: {selectedUpload.file.name}
+                      Geselecteerd: {selectedUploads.length} bestand(en)
                     </Text>
-                    <Text fontSize="xs" color="gray.600">
-                      {selectedUpload.plan.activeTargets.length > 0
-                        ? `Actief: ${formatStorageTargetsInline(selectedUpload.plan.activeTargets)}`
-                        : 'Actieve opslag volgt'}
-                    </Text>
-                    {selectedUpload.plan.plannedTargets.length > 0 ? (
-                      <Text fontSize="xs" color="orange.600">
-                        Gepland: {formatStorageTargetsInline(selectedUpload.plan.plannedTargets)} (under
-                        construction)
-                      </Text>
-                    ) : null}
-                    {selectedUpload.plan.requiresPreprocessing ? (
-                      <Text fontSize="xs" color="gray.500">
-                        Voorbewerking is nodig voordat we alles opslaan.
-                      </Text>
-                    ) : null}
+                    <Stack gap={1} maxH="160px" overflowY="auto" w="100%">
+                      {selectedUploads.map((upload) => (
+                        <Text key={upload.id} fontSize="xs" color="gray.700" textAlign="center">
+                          {upload.file.name} ·{' '}
+                          {upload.plan.activeTargets.length > 0
+                            ? `Actief: ${formatStorageTargetsInline(upload.plan.activeTargets)}`
+                            : 'Actieve opslag volgt'}
+                          {upload.plan.plannedTargets.length > 0
+                            ? ` · Gepland: ${formatStorageTargetsInline(upload.plan.plannedTargets)}`
+                            : ''}
+                          {upload.plan.requiresPreprocessing ? ' · Voorbewerking nodig' : ''}
+                        </Text>
+                      ))}
+                    </Stack>
                   </Stack>
                 ) : null}
               </Stack>
@@ -380,7 +391,7 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
                   Annuleren
                 </Button>
               ) : (
-                <Button variant="ghost" onClick={resetUploadState} disabled={!selectedUpload}>
+                <Button variant="ghost" onClick={resetUploadState} disabled={selectedUploads.length === 0}>
                   Wissen
                 </Button>
               )}
@@ -389,7 +400,7 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
                 colorScheme="purple"
                 loading={isUploading}
                 loadingText="Uploaden"
-                disabled={!selectedUpload}
+                disabled={selectedUploads.length === 0}
               >
                 Uploaden
               </Button>
