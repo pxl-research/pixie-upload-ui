@@ -15,8 +15,9 @@ export const RagJobResponseSchema = z.object({
       documents: z.array(z.string()).optional(),
       file_names: z.array(z.string()).optional(),
     })
+    .nullable()
     .optional(),
-  documents: z.array(z.string()).optional(),
+  documents: z.array(z.string()).nullable().optional(),
 })
 
 export type RagJobResponse = z.infer<typeof RagJobResponseSchema>

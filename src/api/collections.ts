@@ -1,6 +1,7 @@
 import { request } from '@/api/client'
 import { routes } from '@/api/routes'
 import { CollectionSchema, type CollectionDto } from '@/api/types'
+import { fetchRagDocuments } from '@/api/documents'
 
 export interface CreateCollectionInput {
   name: string
@@ -24,15 +25,30 @@ export async function fetchRagCollections(): Promise<CollectionDto[]> {
     target: 'rag',
   })
 
-  return (data.collections ?? []).map((name, index) =>
-    CollectionSchema.parse({
-      id: index,
-      name,
-      document_count: 0,
-      storage_targets: ['pixie-rag-db'],
-      planned_storage_targets: [],
+  const collections = data.collections ?? []
+
+  const withCounts = await Promise.all(
+    collections.map(async (name, index) => {
+      let documentCount = 0
+      try {
+        const docs = await fetchRagDocuments(name)
+        documentCount = docs.length
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.warn('Kon RAG documentaantal niet ophalen voor', name, error)
+      }
+
+      return CollectionSchema.parse({
+        id: index,
+        name,
+        document_count: documentCount,
+        storage_targets: ['pixie-rag-db'],
+        planned_storage_targets: [],
+      })
     }),
   )
+
+  return withCounts
 }
 
 export async function createCollection(payload: CreateCollectionInput) {

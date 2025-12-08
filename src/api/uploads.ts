@@ -104,12 +104,24 @@ async function uploadToRag(
 
   const ack = RagJobResponseSchema.catchall(z.unknown()).safeParse(response)
   if (!ack.success) {
-    throw new Error('RAG API gaf een ongeldig antwoord op upload')
+    // Best-effort: geen job_id, maar upload is wel geaccepteerd
+    // eslint-disable-next-line no-console
+    console.warn('RAG upload: onverwacht antwoord', ack.error)
+    return {
+      target: 'pixie-rag-db' as const,
+      documents: [],
+      ragJob: undefined,
+    }
   }
 
   const job = normalizeRagJob(ack.data)
   if (!job.id) {
-    throw new Error('RAG API gaf geen job_id terug voor async upload')
+    // Geen job_id, maar we melden geen fout om de UI niet te blokkeren
+    return {
+      target: 'pixie-rag-db' as const,
+      documents: [],
+      ragJob: undefined,
+    }
   }
 
   return {
