@@ -7,6 +7,9 @@ import { RAG_API_BASE_URL, RAG_PROXY_TARGET, TABULAR_API_BASE_URL, TABULAR_PROXY
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
+  const tabularProxyTarget = env.TABULAR_PROXY_TARGET || TABULAR_PROXY_TARGET
+  const ragProxyTarget = env.RAG_PROXY_TARGET || RAG_PROXY_TARGET
+
   const proxies: Record<string, string | ProxyOptions> = {}
 
   const addProxy = (basePath: string | undefined, target: string | undefined) => {
@@ -19,8 +22,8 @@ export default defineConfig(({ mode }) => {
     }
   }
 
-  addProxy(env.TABULAR_API_BASE_URL || TABULAR_API_BASE_URL, TABULAR_PROXY_TARGET)
-  addProxy(env.RAG_API_BASE_URL || RAG_API_BASE_URL, RAG_PROXY_TARGET)
+  addProxy(env.TABULAR_API_BASE_URL || TABULAR_API_BASE_URL, tabularProxyTarget)
+  addProxy(env.RAG_API_BASE_URL || RAG_API_BASE_URL, ragProxyTarget)
 
   return {
     plugins: [react()],
