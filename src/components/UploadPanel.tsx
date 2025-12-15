@@ -43,7 +43,7 @@ const schema = z.object({
     .max(8, 'Maximaal 8 karakters')
     .transform((value) => (value?.trim() ? value.trim() : undefined))
     .optional(),
-  ocrEnabled: z.enum(['', 'true', 'false']).default(''),
+  ocrEnabled: z.enum(['', 'true', 'false']),
   ocrLang: z
     .string()
     .max(64, 'Maximaal 64 karakters')
