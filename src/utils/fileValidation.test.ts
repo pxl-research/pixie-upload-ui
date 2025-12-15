@@ -15,6 +15,7 @@ describe('getFileHandlingPlan', () => {
     const plan = getFileHandlingPlan(file)
     expect(plan).not.toBeNull()
     expect((plan as FileHandlingPlan).category).toBe('tabular')
+    expect((plan as FileHandlingPlan).activeTargets).toContain('pixie-rag-db')
   })
 
   it('accepts xlsx files by mime type', () => {
@@ -24,7 +25,9 @@ describe('getFileHandlingPlan', () => {
     )
     const plan = getFileHandlingPlan(file)
     expect(plan).not.toBeNull()
-    expect((plan as FileHandlingPlan).activeTargets).toContain('pixie-tabular-db')
+    expect((plan as FileHandlingPlan).activeTargets).toEqual(
+      expect.arrayContaining(['pixie-tabular-db', 'pixie-rag-db']),
+    )
   })
 
   it('rejects unsupported files', () => {
