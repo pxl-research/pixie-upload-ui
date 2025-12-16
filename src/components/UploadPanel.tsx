@@ -43,12 +43,6 @@ const schema = z.object({
     .max(8, 'Maximaal 8 karakters')
     .transform((value) => (value?.trim() ? value.trim() : undefined))
     .optional(),
-  ocrEnabled: z.enum(['', 'true', 'false']),
-  ocrLang: z
-    .string()
-    .max(64, 'Maximaal 64 karakters')
-    .transform((value) => (value?.trim() ? value.trim() : undefined))
-    .optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -96,7 +90,7 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
     reset,
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { language: '', ocrEnabled: '', ocrLang: '' },
+    defaultValues: { language: '' },
   })
 
   useEffect(() => {
@@ -118,7 +112,7 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
   const resetUploadState = () => {
     setSelectedUploads([])
     abortControllerRef.current = null
-    reset({ language: '', ocrEnabled: '', ocrLang: '' })
+    reset({ language: '' })
   }
 
   const addFile = (file: File) => {
@@ -230,8 +224,6 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
         const payload: UploadDocumentVariables = {
           file: upload.file,
           language: values.language,
-          ocr_enabled: values.ocrEnabled === '' ? undefined : values.ocrEnabled === 'true',
-          ocr_lang: values.ocrLang,
           signal: controller.signal,
           targets:
             upload.plan.activeTargets.length > 0
@@ -390,31 +382,6 @@ export function UploadPanel({ collectionName, onUploadCompleted }: UploadPanelPr
                 <Field.ErrorText>{errors.language?.message}</Field.ErrorText>
               </Field.Root>
 
-              <Field.Root invalid={Boolean(errors.ocrEnabled)}>
-                <Field.Label>OCR forceren</Field.Label>
-                <select
-                  {...register('ocrEnabled')}
-                  style={{
-                    padding: '0.5rem',
-                    borderRadius: '0.375rem',
-                    borderWidth: '1px',
-                    borderColor: errors.ocrEnabled ? '#e53e3e' : '#e2e8f0',
-                    width: '100%',
-                  }}
-                >
-                  <option value="">Standaard (env)</option>
-                  <option value="true">Altijd aan</option>
-                  <option value="false">Uitzetten voor dit document</option>
-                </select>
-                <Field.ErrorText>{errors.ocrEnabled?.message}</Field.ErrorText>
-              </Field.Root>
-
-              <Field.Root invalid={Boolean(errors.ocrLang)}>
-                <Field.Label>OCR talen (komma-gescheiden)</Field.Label>
-                <Input placeholder="nld,eng" {...register('ocrLang')} />
-                <Field.HelperText>Kort codes: nld, eng, fra (combi toegestaan). Leeg = standaard.</Field.HelperText>
-                <Field.ErrorText>{errors.ocrLang?.message}</Field.ErrorText>
-              </Field.Root>
             </Stack>
 
             <Flex justify="flex-end" gap={3}>
